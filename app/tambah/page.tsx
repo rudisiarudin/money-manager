@@ -58,30 +58,26 @@ export default function TambahTransaksiPage() {
       } else {
         setUserId(null);
         setWallets([]);
+        router.push('/login');
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [router]); // ✅ Diperbaiki dengan menambahkan router ke dependencies
 
   useEffect(() => {
     if (!userId) return;
 
     const fetchWallets = async () => {
-      try {
-        const walletsQuery = query(
-          collection(db, 'wallets'),
-          where('userId', '==', userId)
-        );
-
-        const snapshot = await getDocs(walletsQuery);
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as WalletItem[];
-        setWallets(data);
-      } catch (error) {
-        console.error('Error fetching wallets:', error);
-      }
+      const walletsQuery = query(
+        collection(db, 'wallets'),
+        where('userId', '==', userId)
+      );
+      const snapshot = await getDocs(walletsQuery);
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as WalletItem[];
+      setWallets(data);
     };
 
     fetchWallets();
@@ -111,7 +107,6 @@ export default function TambahTransaksiPage() {
     }
 
     try {
-      // Tambahkan transaksi ke koleksi "transactions"
       await addDoc(collection(db, 'transactions'), {
         title,
         amount: parsedAmount,
@@ -121,10 +116,9 @@ export default function TambahTransaksiPage() {
         date: new Date().toISOString(),
         source: wallet.id,
         createdAt: serverTimestamp(),
-        userId, // pastikan transaksi juga punya userId
+        userId,
       });
 
-      // Update saldo wallet
       const walletRef = doc(db, 'wallets', wallet.id);
       await updateDoc(walletRef, {
         balance: wallet.balance - parsedAmount,

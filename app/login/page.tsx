@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { FirebaseError } from 'firebase/app';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -27,8 +28,10 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push('/');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      const errorMessage =
+        (err as FirebaseError)?.message || 'Terjadi kesalahan';
+      setError(errorMessage);
     }
   };
 
@@ -80,10 +83,9 @@ export default function LoginPage() {
         </form>
       </div>
 
-    <footer className="text-center text-gray-500 text-sm mt-8 mb-4">
-         © {new Date().getFullYear()} Rudi Si'arudin. Built with IT Palugada
-    </footer>
-
+      <footer className="text-center text-gray-500 text-sm mt-8 mb-4">
+        © {new Date().getFullYear()} Rudi Si&apos;arudin. Built with IT Palugada
+      </footer>
     </div>
   );
 }

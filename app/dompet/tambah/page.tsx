@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -57,11 +58,10 @@ export default function TambahDompetPage() {
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router]); // ✅ Menambahkan router ke dependency array
 
   const fetchWallets = async (uid: string) => {
     try {
-      // Query hanya wallets milik user ini saja
       const q = query(collection(db, 'wallets'), where('userId', '==', uid));
       const snapshot = await getDocs(q);
       const data: Wallet[] = snapshot.docs.map((doc) => {
@@ -92,7 +92,6 @@ export default function TambahDompetPage() {
       return;
     }
 
-    // Bersihkan input amount, ganti "500.000" jadi 500000
     const cleanAmount = parseInt(amount.replace(/\./g, ''));
     if (isNaN(cleanAmount) || cleanAmount <= 0) {
       alert('Nominal tidak valid.');
@@ -103,8 +102,6 @@ export default function TambahDompetPage() {
     if (!selected) return;
 
     const now = new Date();
-
-    // Cek apakah dompet sudah ada, untuk update balance
     const existingWallet = wallets.find((w) => w.source === selectedSource);
 
     try {
@@ -122,7 +119,6 @@ export default function TambahDompetPage() {
         });
       }
 
-      // Catat transaksi pemasukan dengan userId
       await addDoc(collection(db, 'transactions'), {
         title: `${selectedCategory} - ${selectedSource}`,
         amount: cleanAmount,
@@ -171,7 +167,13 @@ export default function TambahDompetPage() {
                   selectedSource === wallet.source ? 'border-blue-600 bg-blue-50' : ''
                 }`}
               >
-                <img src={wallet.icon} alt={wallet.source} className="w-8 h-8 object-contain" />
+                <Image
+                  src={wallet.icon}
+                  alt={wallet.source}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
                 <span className="text-sm font-medium">{wallet.source}</span>
               </button>
             ))}

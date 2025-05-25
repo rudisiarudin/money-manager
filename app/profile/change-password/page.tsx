@@ -7,10 +7,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { FirebaseError } from 'firebase/app';
 
 export default function ChangePasswordPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,10 +28,6 @@ export default function ChangePasswordPage() {
 
     return () => unsubscribe();
   }, [router]);
-
-  // Firebase updatePassword requires user to be recently authenticated.
-  // For simplicity, here we skip re-authentication.  
-  // (Better to implement re-auth flow for production apps.)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +48,8 @@ export default function ChangePasswordPage() {
       await updatePassword(user, newPassword);
       toast.success('Password berhasil diubah');
       router.push('/profile');
-    } catch (error: any) {
-      console.error(error);
+    } catch (err) {
+      const error = err as FirebaseError;
       if (error.code === 'auth/requires-recent-login') {
         toast.error('Silakan login ulang untuk mengubah password');
       } else {
@@ -83,9 +79,15 @@ export default function ChangePasswordPage() {
       </div>
 
       <main className="max-w-md mx-auto mt-6 px-4">
-        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-md space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white p-6 rounded-xl shadow-md space-y-5"
+        >
           <div>
-            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="newPassword"
+              className="block text-sm font-medium text-gray-700"
+            >
               Password Baru
             </label>
             <input
@@ -100,7 +102,10 @@ export default function ChangePasswordPage() {
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium text-gray-700"
+            >
               Konfirmasi Password Baru
             </label>
             <input

@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { db, auth } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import Image from 'next/image'; // ✅ Import Image
 
 type WalletItem = {
   id: string;
@@ -45,13 +46,11 @@ export default function DompetPage() {
 
     const fetchWallets = async () => {
       try {
-        // Query wallets milik user ini saja
         const q = query(collection(db, 'wallets'), where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
 
         const walletData: WalletItem[] = querySnapshot.docs.map((doc) => {
           const data = doc.data();
-
           return {
             id: doc.id,
             source: typeof data.source === 'string' ? data.source : 'Unknown',
@@ -102,11 +101,14 @@ export default function DompetPage() {
           wallets.map((wallet) => (
             <Card key={wallet.id} className="mb-3">
               <CardContent className="p-4 flex items-center gap-4">
-                <img
-                  src={wallet.icon}
-                  alt={wallet.source}
-                  className="w-10 h-10 object-contain rounded-full bg-white border"
-                />
+                <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-white">
+                  <Image
+                    src={wallet.icon}
+                    alt={wallet.source}
+                    fill
+                    className="object-contain"
+                  />
+                </div>
                 <div className="flex justify-between items-center w-full">
                   <div>
                     <p className="font-medium">{wallet.source}</p>

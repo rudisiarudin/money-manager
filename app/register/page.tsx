@@ -1,10 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createUserWithEmailAndPassword, onAuthStateChanged, updateProfile } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  updateProfile,
+} from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import type { FirebaseError } from 'firebase/app';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -25,16 +30,19 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
 
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName: name });
       }
 
       router.push('/');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      const errorMessage =
+        (err as FirebaseError)?.message || 'Terjadi kesalahan saat mendaftar';
+      setError(errorMessage);
     }
   };
 
@@ -46,7 +54,10 @@ export default function RegisterPage() {
           <p className="text-gray-600 mt-1">Dompet Digital Anda</p>
         </div>
 
-        <form onSubmit={handleRegister} className="bg-white p-6 rounded shadow-md w-full">
+        <form
+          onSubmit={handleRegister}
+          className="bg-white p-6 rounded shadow-md w-full"
+        >
           <h1 className="text-2xl font-bold mb-4">Register</h1>
           {error && <p className="text-red-500 mb-4">{error}</p>}
 
@@ -96,9 +107,8 @@ export default function RegisterPage() {
       </div>
 
       <footer className="text-center text-gray-500 text-sm mt-8 mb-4">
-         © {new Date().getFullYear()} Rudi Si'arudin. Built with IT Palugada
-    </footer>
-
+        © {new Date().getFullYear()} Rudi Siarudin. Built with IT Palugada
+      </footer>
     </div>
   );
 }
