@@ -22,6 +22,7 @@ const walletOptions = [
   { source: 'Sea Bank', icon: '/banks/seabank.png' },
   { source: 'Jenius', icon: '/banks/jenius.png' },
   { source: 'Dompet Fisik', icon: '/banks/cash.png' },
+  { source: 'Bank Lain', icon: '/banks/default.png' }, // Sudah diubah
 ];
 
 const incomeCategoriesWithIcon = [
@@ -42,6 +43,7 @@ type Wallet = {
 export default function TambahDompetPage() {
   const router = useRouter();
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [customSourceName, setCustomSourceName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Gaji');
   const [amount, setAmount] = useState('');
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -58,7 +60,7 @@ export default function TambahDompetPage() {
     });
 
     return () => unsubscribe();
-  }, [router]); // ✅ Menambahkan router ke dependency array
+  }, [router]);
 
   const fetchWallets = async (uid: string) => {
     try {
@@ -84,11 +86,21 @@ export default function TambahDompetPage() {
     e.preventDefault();
 
     if (!user) {
-      alert('User not authenticated');
+      alert('User tidak terautentikasi');
       return;
     }
+
     if (!selectedSource || !amount) {
       alert('Pilih dompet dan masukkan saldo');
+      return;
+    }
+
+    const isCustom = selectedSource === 'Bank Lain';
+    const finalSource = isCustom ? customSourceName.trim() : selectedSource;
+    const selectedIcon = walletOptions.find(w => w.source === selectedSource)?.icon || '/banks/default.png';
+
+    if (!finalSource) {
+      alert('Masukkan nama bank/dompet');
       return;
     }
 
@@ -98,11 +110,8 @@ export default function TambahDompetPage() {
       return;
     }
 
-    const selected = walletOptions.find((opt) => opt.source === selectedSource);
-    if (!selected) return;
-
     const now = new Date();
-    const existingWallet = wallets.find((w) => w.source === selectedSource);
+    const existingWallet = wallets.find((w) => w.source === finalSource);
 
     try {
       if (existingWallet) {
@@ -111,20 +120,20 @@ export default function TambahDompetPage() {
         await updateDoc(walletRef, { balance: newBalance });
       } else {
         await addDoc(collection(db, 'wallets'), {
-          source: selectedSource,
+          source: finalSource,
           balance: cleanAmount,
-          icon: selected.icon,
+          icon: selectedIcon,
           createdAt: now,
           userId: user.uid,
         });
       }
 
       await addDoc(collection(db, 'transactions'), {
-        title: `${selectedCategory} - ${selectedSource}`,
+        title: `${selectedCategory} - ${finalSource}`,
         amount: cleanAmount,
         type: 'income',
         category: selectedCategory,
-        source: selectedSource,
+        source: finalSource,
         date: now.toISOString().split('T')[0],
         createdAt: now,
         userId: user.uid,
@@ -132,7 +141,7 @@ export default function TambahDompetPage() {
 
       router.push('/dompet');
     } catch (error) {
-      console.error('Error saving wallet or transaction:', error);
+      console.error('Gagal menyimpan data:', error);
       alert('Terjadi kesalahan saat menyimpan data.');
     }
   };
@@ -147,7 +156,7 @@ export default function TambahDompetPage() {
       <div className="flex items-center justify-between px-4 pt-6 pb-4 bg-white shadow-sm">
         <button onClick={() => router.back()} className="flex items-center text-blue-600">
           <ArrowLeft className="w-5 h-5 mr-1" />
-          <span className="text-sm font-medium">Back</span>
+          <span className="text-sm font-medium">Kembali</span>
         </button>
         <h1 className="text-lg font-semibold">Tambah Dompet</h1>
         <div className="w-5" />
@@ -156,7 +165,7 @@ export default function TambahDompetPage() {
       <form onSubmit={handleSubmit} className="px-4 mt-4 space-y-4">
         {/* Pilih Dompet */}
         <div>
-          <label className="block mb-2 text-sm font-medium text-gray-700">Pilih Dompet</label>
+          <label className="block mb-2 text-sm font-medium text-gray-700">Pilih Sumber Dana</label>
           <div className="grid grid-cols-2 gap-4">
             {walletOptions.map((wallet) => (
               <button
@@ -178,9 +187,20 @@ export default function TambahDompetPage() {
               </button>
             ))}
           </div>
+
+          {/* Input manual jika pilih Bank Lain */}
+          {selectedSource === 'Bank Lain' && (
+            <input
+              type="text"
+              placeholder="Masukkan nama bank atau dompet"
+              value={customSourceName}
+              onChange={(e) => setCustomSourceName(e.target.value)}
+              className="mt-3 w-full p-3 border border-gray-300 rounded-lg"
+            />
+          )}
         </div>
 
-        {/* Pilih Kategori Pemasukan */}
+        {/* Kategori Pemasukan */}
         <div>
           <label className="block mb-2 text-sm font-medium text-gray-700">Kategori Pemasukan</label>
           <div className="grid grid-cols-2 gap-4">
@@ -213,7 +233,7 @@ export default function TambahDompetPage() {
           />
         </div>
 
-        {/* Tombol Submit */}
+        {/* Tombol Simpan */}
         <button
           type="submit"
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold shadow-md"

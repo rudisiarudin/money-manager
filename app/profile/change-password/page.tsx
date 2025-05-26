@@ -1,7 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, User, updatePassword } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  User,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -11,6 +17,7 @@ import type { FirebaseError } from 'firebase/app';
 
 export default function ChangePasswordPage() {
   const [user, setUser] = useState<User | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -42,19 +49,27 @@ export default function ChangePasswordPage() {
       return;
     }
 
-    if (!user) return;
+    if (!user || !user.email) return;
 
     try {
+      // Re-authenticate user dulu pakai password lama
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, credential);
+
+      // Kalau re-auth sukses, update password
       await updatePassword(user, newPassword);
       toast.success('Password berhasil diubah');
       router.push('/profile');
     } catch (err) {
       const error = err as FirebaseError;
-      if (error.code === 'auth/requires-recent-login') {
+      if (error.code === 'auth/wrong-password') {
+        toast.error('Password lama salah');
+      } else if (error.code === 'auth/requires-recent-login') {
         toast.error('Silakan login ulang untuk mengubah password');
       } else {
         toast.error('Gagal mengubah password');
       }
+      console.error(err);
     }
   };
 
@@ -83,6 +98,23 @@ export default function ChangePasswordPage() {
           onSubmit={handleSubmit}
           className="bg-white p-6 rounded-xl shadow-md space-y-5"
         >
+          <div>
+            <label
+              htmlFor="currentPassword"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Password Lama
+            </label>
+            <input
+              id="currentPassword"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
           <div>
             <label
               htmlFor="newPassword"

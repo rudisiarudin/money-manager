@@ -6,6 +6,7 @@ import { auth } from '@/lib/firebase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { FirebaseError } from 'firebase/app';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -38,11 +39,21 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col justify-between bg-gray-100 p-4">
       <div className="max-w-sm w-full mx-auto">
+        {/* Logo dan nama aplikasi */}
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-extrabold text-blue-600">DuitKu</h1>
+          <div className="flex justify-center mb-2">
+            <Image
+              src="/logo.png" // Pastikan file logo tersedia di /public/logo.png
+              alt="Logo ArtosKu"
+              width={64}
+              height={64}
+            />
+          </div>
+          <h1 className="text-4xl font-extrabold text-primary">ArtosKu</h1>
           <p className="text-gray-600 mt-1">Dompet Digital Anda</p>
         </div>
 
+        {/* Form login */}
         <form onSubmit={handleLogin} className="bg-white p-6 rounded shadow-md w-full">
           <h1 className="text-2xl font-bold mb-4">Login</h1>
           {error && <p className="text-red-500 mb-4">{error}</p>}
@@ -68,7 +79,7 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <button
               type="submit"
-              className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition w-full max-w-xs"
+              className="bg-primary text-white py-2 rounded hover:bg-primary-light transition w-full max-w-xs"
             >
               Login
             </button>
@@ -76,7 +87,7 @@ export default function LoginPage() {
 
           <p className="mt-4 text-center text-sm text-gray-600">
             Belum punya akun?{' '}
-            <Link href="/register" className="text-blue-600 hover:underline">
+            <Link href="/register" className="text-primary hover:underline">
               Register
             </Link>
           </p>

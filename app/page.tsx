@@ -2,38 +2,52 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Eye, EyeOff, Home, Clock, PlusCircle, User, DollarSign,
+  Home,
+  Clock,
+  Plus,
+  User,
+  DollarSign,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+  CloudSun,
+  CloudMoon,
 } from 'lucide-react';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import Image from 'next/image';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
-type Transaction = {
-  id: string;
-  title: string;
-  date: string; // ISO string
-  amount: number;
-  type: 'income' | 'expense';
-  category: string;
-  source: string;
-};
+// Format Rupiah
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
-type WalletItem = {
-  id: string;
-  source: string;
-  balance: number;
-  icon: string;
-};
+// Greeting & message sesuai waktu
+function getGreetingAndMessage() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 10) {
+    return { greeting: 'Selamat Pagi', icon: <Sun size={20} />, message: 'Semoga harimu penuh semangat!' };
+  } else if (hour >= 10 && hour < 15) {
+    return { greeting: 'Selamat Siang', icon: <CloudSun size={20} />, message: 'Tetap semangat dan produktif!' };
+  } else if (hour >= 15 && hour < 18) {
+    return { greeting: 'Selamat Sore', icon: <CloudMoon size={20} />, message: 'Jangan lupa istirahat ya!' };
+  }
+  return { greeting: 'Selamat Malam', icon: <Moon size={20} />, message: 'Semoga mimpimu indah!' };
+}
 
 const icons: Record<string, string> = {
   Gaji: '💼',
   Penjualan: '🛒',
   Freelance: '🧑‍💻',
   Other: '🔖',
-
   Food: '🍔',
   Transport: '🚌',
   Shopping: '🛍️',
@@ -45,202 +59,226 @@ const icons: Record<string, string> = {
   Others: '📦',
 };
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
+type Transaction = {
+  id: string;
+  title: string;
+  date: string;
+  amount: number;
+  type: 'income' | 'expense';
+  category: string;
+  source: string;
+};
 
 export default function HomePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [wallets, setWallets] = useState<WalletItem[]>([]);
   const [showBalance, setShowBalance] = useState(true);
-  const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string | null>(null);
+  const [income, setIncome] = useState(0);
+  const [expense, setExpense] = useState(0);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeTx: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (!user) {
         router.push('/login');
-      } else {
-        // Ambil nama depan user dari displayName atau email
-        const fullName = user.displayName || user.email?.split('@')[0] || 'User';
-        const firstName = fullName.split(' ')[0];
-        setUserName(firstName);
+        return;
+      }
 
-        // Ambil transaksi user ini
-        const txQuery = query(
-          collection(db, 'transactions'),
-          where('userId', '==', user.uid)
-        );
-        const txSnapshot = await getDocs(txQuery);
-        const txData: Transaction[] = txSnapshot.docs.map((doc) => ({
+      const fullName = user.displayName || user.email?.split('@')[0] || 'User';
+      const firstName = fullName.split(' ')[0];
+      setUserName(firstName);
+
+      const txQuery = query(
+        collection(db, 'transactions'),
+        where('userId', '==', user.uid)
+      );
+      unsubscribeTx = onSnapshot(txQuery, (snapshot) => {
+        const txData: Transaction[] = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...(doc.data() as Omit<Transaction, 'id'>),
         }));
-
-        // Ambil wallet user ini
-        const walletQuery = query(
-          collection(db, 'wallets'),
-          where('userId', '==', user.uid)
-        );
-        const walletSnapshot = await getDocs(walletQuery);
-        const walletData: WalletItem[] = walletSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<WalletItem, 'id'>),
-        }));
-
         setTransactions(txData);
-        setWallets(walletData);
         setLoading(false);
-      }
+      });
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeTx) unsubscribeTx();
+    };
   }, [router]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex justify-center items-center">
-        Loading...
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (transactions.length > 0) {
+      const totalIncome = transactions
+        .filter((tx) => tx.type === 'income')
+        .reduce((sum, tx) => sum + tx.amount, 0);
 
-  // Hitung total pemasukan dan pengeluaran
-  const expense = transactions
-    .filter((tx) => tx.type === 'expense')
-    .reduce((sum, tx) => sum + tx.amount, 0);
+      const totalExpense = transactions
+        .filter((tx) => tx.type === 'expense')
+        .reduce((sum, tx) => sum + tx.amount, 0);
 
-  const income = transactions
-    .filter((tx) => tx.type === 'income')
-    .reduce((sum, tx) => sum + tx.amount, 0);
+      setIncome(totalIncome);
+      setExpense(totalExpense);
+    }
+  }, [transactions]);
 
-  // Total saldo dompet
-  const walletTotal = wallets.reduce(
-    (sum, w) => sum + Number(w.balance || 0),
-    0
-  );
-
-  // Urutkan transaksi berdasarkan tanggal terbaru
   const sortedTransactions = [...transactions].sort((a, b) => {
     const dateA = new Date(a.date).getTime();
     const dateB = new Date(b.date).getTime();
     return dateB - dateA;
   });
 
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  const expenseToday = transactions
+    .filter((tx) => tx.type === 'expense' && tx.date.startsWith(today))
+    .reduce((sum, tx) => sum + tx.amount, 0);
+
+  const expenseYesterday = transactions
+    .filter((tx) => tx.type === 'expense' && tx.date.startsWith(yesterday))
+    .reduce((sum, tx) => sum + tx.amount, 0);
+
+  const { greeting, icon, message } = getGreetingAndMessage();
+
+  if (loading) {
+    return <div className="min-h-screen flex justify-center items-center">Loading...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col pb-20">
+    <div className="min-h-screen bg-[#F7F9FA] flex flex-col pb-20 px-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>
       {/* Header */}
-      <header className="p-4 pt-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-blue-600">
-          <span className="text-black">Duit</span>
-          <span className="text-fuchsia-600">Ku</span>
+      <header className="pt-6 flex items-center gap-3">
+        <Image src="/logo.png" alt="Logo" width={48} height={48} className="object-contain" />
+        <h1 className="text-2xl font-extrabold">
+          <span className="text-[#122d5b]">Artos</span>
+          <span className="text-[#f4a923]">Ku</span>
         </h1>
-        <div className="flex gap-3">
-          <button className="bg-white rounded-full p-2 shadow-sm">🔔</button>
-          <button className="bg-white rounded-full p-2 shadow-sm">⚙️</button>
-        </div>
       </header>
 
-      {/* Balance */}
-      <section className="px-4">
-        <div className="bg-gradient-to-br from-indigo-500 to-blue-500 text-white rounded-2xl p-5 shadow-md relative">
-          <p className="text-sm">Welcome back</p>
-          <h2 className="font-bold">{getGreeting()}, {userName}!</h2>
-
-          <h1 className="text-3xl font-bold mt-2">
-            {showBalance ? formatCurrency(walletTotal) : '••••••'}
-          </h1>
-          <button
-            onClick={() => setShowBalance(!showBalance)}
-            className="absolute top-4 right-4 text-white"
-            aria-label="Toggle balance visibility"
-          >
-            {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
-          </button>
-
-          <p className="text-xs mt-1">TOTAL BALANCE</p>
+      {/* Greeting */}
+      <section className="mt-2 flex items-center gap-2">
+        <div className="text-[#122d5b] text-lg flex items-center gap-1 font-semibold">
+          {icon} {greeting}, <span className="font-bold">{userName}!</span>
         </div>
+      </section>
+      <p className="text-sm text-gray-600 font-medium mb-3">{message}</p>
 
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div className="bg-green-100 text-green-700 rounded-xl p-4 flex flex-col">
-            <p>Pemasukan</p>
-            <h3 className="text-xl font-semibold">{formatCurrency(income)}</h3>
+      {/* Balance Card */}
+      <section>
+        <div className="bg-gradient-to-br from-[#122d5b] to-[#13223c] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
+          <div className="absolute right-4 top-4 text-white opacity-60">
+            <button onClick={() => setShowBalance(!showBalance)} aria-label="Toggle saldo">
+              {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
-          <div className="bg-red-100 text-red-700 rounded-xl p-4 flex flex-col">
-            <p>Pengeluaran</p>
-            <h3 className="text-xl font-semibold">{formatCurrency(expense)}</h3>
+          <div className="mb-6">
+            <p className="text-xs opacity-80">Total Saldo</p>
+            <h1 className="text-2xl font-bold mt-1">
+              {showBalance ? formatCurrency(income - expense) : '••••••'}
+            </h1>
+          </div>
+          <div className="flex justify-between text-xs opacity-70">
+            <div className="text-green-400">
+              <p className="uppercase font-semibold">Pemasukan</p>
+              <p>{formatCurrency(income)}</p>
+            </div>
+            <div className="border-l border-white/40" />
+            <div className="text-red-400">
+              <p className="uppercase font-semibold">Pengeluaran</p>
+              <p>{formatCurrency(expense)}</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Recent Transactions */}
-      <section className="px-4 mt-6 flex-1 overflow-auto">
-        <h3 className="font-semibold text-gray-700 mb-3">Recent Transactions</h3>
-        {sortedTransactions.length === 0 ? (
-          <p className="text-sm text-gray-400">No transactions yet.</p>
+      {/* Ringkasan Pengeluaran Hari Ini & Kemarin */}
+      <section className="mt-4 bg-white rounded-xl p-4 shadow-sm flex justify-around text-center text-[#122d5b]">
+        <div>
+          <p className="text-xs text-gray-500">Pengeluaran Hari Ini</p>
+          <p className="font-semibold text-lg">{formatCurrency(expenseToday)}</p>
+        </div>
+        <div className="border-l border-gray-300" />
+        <div>
+          <p className="text-xs text-gray-500">Pengeluaran Kemarin</p>
+          <p className="font-semibold text-lg">{formatCurrency(expenseYesterday)}</p>
+        </div>
+      </section>
+
+      {/* Alert Pengeluaran Hari Ini */}
+      <section className="mt-3">
+        {expenseToday > 100000 ? (
+          <div className="bg-red-100 text-red-700 rounded-md p-3 text-center font-semibold">
+            ⚠️ Boros! Pengeluaranmu hari ini cukup besar.
+          </div>
+        ) : expenseToday > 30000 ? (
+          <div className="bg-yellow-100 text-yellow-700 rounded-md p-3 text-center font-semibold">
+            💡 Berhemat ya, jangan boros.
+          </div>
         ) : (
-          sortedTransactions.slice(0, 3).map((tx) => (
-            <Card key={tx.id} className="mb-2">
-              <CardContent className="p-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{icons[tx.category] || '📦'}</span>
-                  <div>
-                    <p className="font-medium">{tx.category}</p>
-                    <p className="text-xs text-gray-400">{tx.title}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p
-                    className={`font-semibold ${
-                      tx.type === 'income' ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {new Date(tx.date).toLocaleDateString('id-ID', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+          <div className="bg-green-100 text-green-700 rounded-md p-3 text-center font-semibold">
+            🎉 Hemat banget, lanjutkan terus!
+          </div>
         )}
       </section>
 
-      {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around py-2 px-4 z-10 rounded-t-xl">
-        <Link href="/">
-          <Home className="w-6 h-6 text-blue-600" />
+      {/* Recent Transactions Header */}
+      <section className="mt-5 flex justify-between items-center mb-2">
+        <h3 className="font-semibold text-[#122d5b]">Transaksi Terbaru</h3>
+        <Link href="/history" className="text-sm text-[#122d5b] font-medium hover:underline">
+          Lihat Semua
         </Link>
-        <Link href="/history">
-          <Clock className="w-6 h-6 text-gray-500" />
-        </Link>
-        <Link href="/tambah">
-          <div className="bg-blue-600 text-white rounded-full p-3 -mt-8 shadow-md">
-            <PlusCircle className="w-6 h-6" />
+      </section>
+
+      {/* Recent Transactions List */}
+      <section className="flex flex-col gap-2 max-h-60 overflow-auto">
+        {sortedTransactions.slice(0, 5).map((tx) => (
+          <div
+            key={tx.id}
+            className="flex justify-between items-center p-3 rounded-lg bg-white shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-2xl">{icons[tx.category] || '📦'}</div>
+              <div>
+                <p className="font-semibold text-[#122d5b]">{tx.title}</p>
+                <p className="text-xs text-gray-400">{tx.date}</p>
+              </div>
+            </div>
+            <div className={tx.type === 'income' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+              {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
+            </div>
           </div>
+        ))}
+      </section>
+
+      {/* Bottom Navbar with center plus button */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-between items-center h-16 px-6 shadow-inner">
+        <Link href="/" className="text-[#122d5b] hover:text-[#0f234e] transition">
+          <Home size={26} />
         </Link>
-        <Link href="/dompet">
-          <DollarSign className="w-6 h-6 text-gray-500" />
+        <Link href="/history" className="text-[#122d5b] hover:text-[#0f234e] transition">
+          <Clock size={26} />
         </Link>
-        <Link href="/profile">
-          <User className="w-6 h-6 text-gray-500" />
+
+        {/* Add transaction button center */}
+        <button
+          onClick={() => router.push('/tambah')}
+          aria-label="Tambah Transaksi"
+          className="bg-[#122d5b] hover:bg-[#0f234e] text-white rounded-full p-3 flex items-center justify-center shadow-lg -mt-10"
+          style={{ width: 56, height: 56 }}
+        >
+          <Plus size={32} />
+        </button>
+
+        <Link href="/dompet" className="text-[#122d5b] hover:text-[#0f234e] transition">
+          <DollarSign size={26} />
+        </Link>
+        <Link href="/profile" className="text-[#122d5b] hover:text-[#0f234e] transition">
+          <User size={26} />
         </Link>
       </nav>
     </div>

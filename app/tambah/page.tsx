@@ -7,16 +7,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import BackHeader from '@/components/BackHeader';
 import { db, auth } from '@/lib/firebase';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-  serverTimestamp,
-  query,
-  where,
-} from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, query, where } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 type WalletItem = {
@@ -25,6 +16,7 @@ type WalletItem = {
   balance: number;
   type: 'bank' | 'cash';
   icon: string;
+  sourceName?: string; // contoh: Bank BCA, SeaBank, Dompet Fisik
 };
 
 type CategoryItem = {
@@ -33,13 +25,14 @@ type CategoryItem = {
 };
 
 const categoryOptions: CategoryItem[] = [
-  { name: 'Food', icon: '🍔' },
-  { name: 'Transport', icon: '🚗' },
-  { name: 'Shopping', icon: '🛍️' },
-  { name: 'Health', icon: '💊' },
-  { name: 'Bills', icon: '💡' },
-  { name: 'Entertainment', icon: '🎮' },
-  { name: 'Other', icon: '📝' },
+  { name: 'Makanan', icon: '🍔' },
+  { name: 'Transportasi', icon: '🚗' },
+  { name: 'Belanja', icon: '🛍️' },
+  { name: 'Kesehatan', icon: '💊' },
+  { name: 'Tagihan', icon: '💡' },
+  { name: 'Hiburan', icon: '🎮' },
+  { name: 'Hutang', icon: '📉' }, // kategori Hutang baru
+  { name: 'Lainnya', icon: '📝' },
 ];
 
 export default function TambahTransaksiPage() {
@@ -62,7 +55,7 @@ export default function TambahTransaksiPage() {
       }
     });
     return () => unsubscribe();
-  }, [router]); // ✅ Diperbaiki dengan menambahkan router ke dependencies
+  }, [router]);
 
   useEffect(() => {
     if (!userId) return;
@@ -85,7 +78,7 @@ export default function TambahTransaksiPage() {
 
   const handleSubmit = async () => {
     if (!title || !amount || !selectedCategory || !selectedWalletId) {
-      toast.error('Lengkapi semua field');
+      toast.error('Harap lengkapi semua kolom');
       return;
     }
 
@@ -189,16 +182,16 @@ export default function TambahTransaksiPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Dompet</label>
+          <label className="block text-sm font-medium mb-1">Sumber Dana</label>
           <select
             className="w-full border rounded-md px-3 py-2"
             value={selectedWalletId}
             onChange={(e) => setSelectedWalletId(e.target.value)}
           >
-            <option value="">-- Pilih Dompet --</option>
+            <option value="">-- Pilih Sumber Dana --</option>
             {wallets.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.name} - Rp{Number(w.balance).toLocaleString('id-ID')}
+                {w.icon} {w.name} - {w.type === 'bank' ? 'Bank' : 'Dompet'} (Saldo: Rp{Number(w.balance).toLocaleString('id-ID')})
               </option>
             ))}
           </select>

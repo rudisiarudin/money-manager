@@ -1,13 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PlusCircle, ArrowLeft } from 'lucide-react';
+import { PlusCircle, ArrowLeft, Trash } from 'lucide-react';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
 import { db, auth } from '@/lib/firebase';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  deleteDoc,
+  doc,
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import Image from 'next/image'; // ✅ Import Image
+import Image from 'next/image';
 
 type WalletItem = {
   id: string;
@@ -28,11 +34,15 @@ function formatCurrency(amount: number | undefined | null) {
 export default function DompetPage() {
   const [wallets, setWallets] = useState<WalletItem[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('Pengguna');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
+        const name = user.displayName || 'Pengguna';
+        setUserName(name);
       } else {
         setUserId(null);
         setWallets([]);
@@ -73,13 +83,23 @@ export default function DompetPage() {
     0
   );
 
+  const handleDelete = async () => {
+    if (!selectedId) return;
+    try {
+      await deleteDoc(doc(db, 'wallets', selectedId));
+      setWallets((prev) => prev.filter((w) => w.id !== selectedId));
+      setSelectedId(null);
+    } catch (error) {
+      console.error('Gagal hapus:', error);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 relative">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 bg-white shadow-sm">
         <Link href="/" className="flex items-center text-blue-600">
           <ArrowLeft className="w-5 h-5 mr-1" />
-          <span className="text-sm font-medium">Back</span>
         </Link>
         <h1 className="text-lg font-semibold">Dompet Saya</h1>
         <div className="w-5" />
@@ -87,37 +107,50 @@ export default function DompetPage() {
 
       {/* Total Balance */}
       <div className="px-4 mt-4">
-        <div className="bg-blue-100 text-blue-800 rounded-xl p-4 shadow">
-          <p className="text-sm">Total Balance</p>
-          <h2 className="text-2xl font-bold">{formatCurrency(total)}</h2>
+        <div className="bg-blue-600 text-white rounded-xl p-4 shadow">
+          <p className="text-sm opacity-80">Total Balance</p>
+          <h2 className="text-3xl font-bold">{formatCurrency(total)}</h2>
         </div>
       </div>
 
       {/* Wallet List */}
-      <div className="px-4 mt-6">
+      <div className="px-4 mt-6 space-y-5">
         {wallets.length === 0 ? (
           <p className="text-sm text-gray-500">Belum ada data dompet atau rekening.</p>
         ) : (
           wallets.map((wallet) => (
-            <Card key={wallet.id} className="mb-3">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="relative w-10 h-10 rounded-full overflow-hidden border bg-white">
-                  <Image
-                    src={wallet.icon}
-                    alt={wallet.source}
-                    fill
-                    className="object-contain"
-                  />
+            <div
+              key={wallet.id}
+              className="relative bg-gray-200 text-black rounded-2xl p-5 shadow-lg"
+            >
+              {/* Top: Logo dan Nama */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 relative">
+                  <Image src={wallet.icon} alt="icon" fill className="object-contain" />
                 </div>
-                <div className="flex justify-between items-center w-full">
-                  <div>
-                    <p className="font-medium">{wallet.source}</p>
-                    <p className="text-sm text-gray-500">Saldo</p>
-                  </div>
-                  <p className="font-semibold">{formatCurrency(wallet.balance)}</p>
+                <div>
+                  <p className="text-lg font-semibold leading-tight">{wallet.source}</p>
+                  <p className="text-sm text-gray-600">{userName}</p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+
+              {/* Balance */}
+              <div className="mt-2">
+                <p className="text-xs text-gray-500">Saldo</p>
+                <p className="text-xl font-bold">{formatCurrency(wallet.balance)}</p>
+              </div>
+
+              {/* Hapus Button */}
+              <div className="absolute bottom-3 right-4 flex">
+                <button
+                  title="Hapus"
+                  className="p-1 rounded-full bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => setSelectedId(wallet.id)}
+                >
+                  <Trash size={16} />
+                </button>
+              </div>
+            </div>
           ))
         )}
       </div>
@@ -125,10 +158,36 @@ export default function DompetPage() {
       {/* Tambah Dompet Button */}
       <Link
         href="/dompet/tambah"
-        className="fixed bottom-5 right-5 bg-blue-600 text-white p-4 rounded-full shadow-lg"
+        className="fixed bottom-5 right-5 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition"
       >
         <PlusCircle className="w-6 h-6" />
       </Link>
+
+      {/* Pop-up Konfirmasi Hapus */}
+      {selectedId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-xl text-center max-w-sm w-full">
+            <h2 className="text-lg font-bold text-red-600 mb-4">Hapus Dompet?</h2>
+            <p className="text-sm text-gray-700 mb-6">
+              Data dompet akan dihapus secara permanen. Lanjutkan?
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => setSelectedId(null)}
+                className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-sm"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-sm"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

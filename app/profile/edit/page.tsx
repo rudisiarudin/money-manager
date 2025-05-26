@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';  // ganti updateDoc dengan setDoc
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -56,11 +56,15 @@ export default function EditProfilePage() {
 
     try {
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        name: name.trim(),
-        gender,
-        birthdate,
-      });
+      await setDoc(
+        userRef,
+        {
+          name: name.trim(),
+          gender,
+          birthdate,
+        },
+        { merge: true }
+      );
       toast.success('Profil berhasil diperbarui');
       router.push('/profile');
     } catch (error) {

@@ -34,9 +34,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      console.log('onAuthStateChanged user:', currentUser);
       if (!currentUser) {
-        console.log('No user, redirect to login');
         router.push('/login');
         return;
       }
@@ -48,12 +46,11 @@ export default function ProfilePage() {
         if (snap.exists()) {
           setUserData(snap.data() as UserData);
         } else {
-          console.warn('User data doc not found, setting fallback');
-          setUserData({ name: 'User' }); // fallback supaya tidak loading terus
+          setUserData({ name: 'Pengguna' });
         }
       } catch (error) {
-        console.error('Error getting user data:', error);
-        setUserData({ name: 'User' });
+        console.error('Gagal mengambil data user:', error);
+        setUserData({ name: 'Pengguna' });
       }
     });
 
@@ -68,7 +65,7 @@ export default function ProfilePage() {
   if (!user || !userData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
+        <p>Memuat data profil...</p>
       </div>
     );
   }
@@ -80,12 +77,11 @@ export default function ProfilePage() {
     .toUpperCase();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="min-h-screen bg-gray-100 pb-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 bg-white shadow-sm">
         <Link href="/" className="flex items-center text-blue-600">
           <ArrowLeft className="w-5 h-5 mr-1" />
-          <span className="text-sm font-medium">Back</span>
         </Link>
         <h1 className="text-lg font-semibold">Profil Saya</h1>
         <div className="w-5" />
@@ -93,45 +89,50 @@ export default function ProfilePage() {
 
       <div className="max-w-md mx-auto mt-6 px-4">
         <div className="bg-white p-6 rounded-xl shadow-md">
+          {/* Avatar & Info */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-blue-100 text-blue-700 text-3xl flex items-center justify-center font-bold">
+            <div className="w-20 h-20 rounded-full bg-blue-100 text-blue-700 text-3xl flex items-center justify-center font-bold shadow">
               {initials}
             </div>
-            <h2 className="mt-3 text-xl font-semibold">{userData.name}</h2>
+            <h2 className="mt-3 text-xl font-semibold text-gray-800">{userData.name}</h2>
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
 
-          <div className="space-y-3 text-sm text-gray-700">
-            <p>
-              <span className="font-medium">Gender: </span>
-              {getGenderDisplay(userData.gender)}
-            </p>
-            <p>
-              <span className="font-medium">Tanggal Lahir: </span>
-              {userData.birthdate
-                ? format(new Date(userData.birthdate), 'dd MMMM yyyy', { locale: id })
-                : '-'}
-            </p>
+          {/* Detail */}
+          <div className="space-y-4 text-sm text-gray-700">
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Jenis Kelamin</span>
+              <span>{getGenderDisplay(userData.gender)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-gray-600">Tanggal Lahir</span>
+              <span>
+                {userData.birthdate
+                  ? format(new Date(userData.birthdate), 'dd MMMM yyyy', { locale: id })
+                  : '-'}
+              </span>
+            </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3">
+          {/* Aksi */}
+          <div className="mt-8 flex flex-col gap-3">
             <Link
               href="/profile/edit"
-              className="block text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
+              className="block text-center bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition font-medium"
             >
               Edit Profil
             </Link>
             <Link
               href="/profile/change-password"
-              className="block text-center border border-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-100 transition"
+              className="block text-center border border-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-100 transition font-medium"
             >
               Ganti Password
             </Link>
             <button
               onClick={handleLogout}
-              className="block text-center bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition"
+              className="block text-center bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition font-medium"
             >
-              Logout
+              Keluar
             </button>
           </div>
         </div>

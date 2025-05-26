@@ -11,6 +11,8 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        primary: "#122d5b", // Biru gelap
+        "primary-light": "#d3dae7", // Biru terang untuk latar belakang lembut
       },
     },
   },
