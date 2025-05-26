@@ -12,11 +12,10 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 type WalletItem = {
   id: string;
-  name: string;
+  source: string; // sumber dana lengkap, misal "ALLO Bank"
   balance: number;
   type: 'bank' | 'cash';
   icon: string;
-  sourceName?: string; // contoh: Bank BCA, SeaBank, Dompet Fisik
 };
 
 type CategoryItem = {
@@ -31,7 +30,7 @@ const categoryOptions: CategoryItem[] = [
   { name: 'Kesehatan', icon: '💊' },
   { name: 'Tagihan', icon: '💡' },
   { name: 'Hiburan', icon: '🎮' },
-  { name: 'Hutang', icon: '📉' }, // kategori Hutang baru
+  { name: 'Hutang', icon: '💸' },  // Kategori Hutang ditambahkan
   { name: 'Lainnya', icon: '📝' },
 ];
 
@@ -68,8 +67,8 @@ export default function TambahTransaksiPage() {
       const snapshot = await getDocs(walletsQuery);
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data(),
-      })) as WalletItem[];
+        ...(doc.data() as Omit<WalletItem, 'id'>),
+      }));
       setWallets(data);
     };
 
@@ -191,7 +190,7 @@ export default function TambahTransaksiPage() {
             <option value="">-- Pilih Sumber Dana --</option>
             {wallets.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.icon} {w.name} - {w.type === 'bank' ? 'Bank' : 'Dompet'} (Saldo: Rp{Number(w.balance).toLocaleString('id-ID')})
+                {w.source} (Saldo: Rp{Number(w.balance).toLocaleString('id-ID')})
               </option>
             ))}
           </select>
