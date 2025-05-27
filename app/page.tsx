@@ -171,17 +171,17 @@ export default function HomePage() {
       {/* Balance Card */}
       <section>
         <div className="bg-gradient-to-br from-[#122d5b] to-[#13223c] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
-          <div className="absolute right-4 top-4 text-white opacity-60">
-            <button onClick={() => setShowBalance(!showBalance)} aria-label="Toggle saldo">
-              {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
-          <div className="mb-6">
-            <p className="text-xs opacity-80">Total Saldo</p>
-            <h1 className="text-2xl font-bold mt-1">
-              {showBalance ? formatCurrency(income - expense) : '••••••'}
-            </h1>
-          </div>
+         <div className="mb-6">
+  <p className="text-xs opacity-80">Total Saldo</p>
+  <div className="flex items-center gap-2 mt-1">
+    <h1 className="text-2xl font-bold">
+      {showBalance ? formatCurrency(income - expense) : '••••••'}
+    </h1>
+    <button onClick={() => setShowBalance(!showBalance)} aria-label="Toggle saldo" className="text-white opacity-70 hover:opacity-100 transition">
+      {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
+    </button>
+  </div>
+</div>
           <div className="flex justify-between text-xs opacity-70">
             <div className="text-green-400">
               <p className="uppercase font-semibold">Pemasukan</p>

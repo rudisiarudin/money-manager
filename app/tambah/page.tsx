@@ -7,12 +7,21 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import BackHeader from '@/components/BackHeader';
 import { db, auth } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, query, where } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  doc,
+  serverTimestamp,
+  query,
+  where,
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 type WalletItem = {
   id: string;
-  source: string; // sumber dana lengkap, misal "ALLO Bank"
+  source: string;
   balance: number;
   type: 'bank' | 'cash';
   icon: string;
@@ -24,14 +33,13 @@ type CategoryItem = {
 };
 
 const categoryOptions: CategoryItem[] = [
-  { name: 'Makanan', icon: '🍔' },
-  { name: 'Transportasi', icon: '🚗' },
-  { name: 'Belanja', icon: '🛍️' },
-  { name: 'Kesehatan', icon: '💊' },
-  { name: 'Tagihan', icon: '💡' },
-  { name: 'Hiburan', icon: '🎮' },
-  { name: 'Hutang', icon: '💸' },  // Kategori Hutang ditambahkan
-  { name: 'Lainnya', icon: '📝' },
+  { name: 'Food', icon: '🍔' },
+  { name: 'Transport', icon: '🚗' },
+  { name: 'Shopping', icon: '🛍️' },
+  { name: 'Health', icon: '💊' },
+  { name: 'Bills', icon: '💡' },
+  { name: 'Entertainment', icon: '🎮' },
+  { name: 'Other', icon: '📝' },
 ];
 
 export default function TambahTransaksiPage() {
@@ -54,7 +62,7 @@ export default function TambahTransaksiPage() {
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, [router]); // ✅ Diperbaiki dengan menambahkan router ke dependencies
 
   useEffect(() => {
     if (!userId) return;
@@ -67,8 +75,8 @@ export default function TambahTransaksiPage() {
       const snapshot = await getDocs(walletsQuery);
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...(doc.data() as Omit<WalletItem, 'id'>),
-      }));
+        ...doc.data(),
+      })) as WalletItem[];
       setWallets(data);
     };
 
@@ -77,7 +85,7 @@ export default function TambahTransaksiPage() {
 
   const handleSubmit = async () => {
     if (!title || !amount || !selectedCategory || !selectedWalletId) {
-      toast.error('Harap lengkapi semua kolom');
+      toast.error('Lengkapi semua field');
       return;
     }
 
@@ -181,16 +189,16 @@ export default function TambahTransaksiPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Sumber Dana</label>
+          <label className="block text-sm font-medium mb-1">Dompet</label>
           <select
             className="w-full border rounded-md px-3 py-2"
             value={selectedWalletId}
             onChange={(e) => setSelectedWalletId(e.target.value)}
           >
-            <option value="">-- Pilih Sumber Dana --</option>
+            <option value="">-- Pilih Dompet --</option>
             {wallets.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.source} (Saldo: Rp{Number(w.balance).toLocaleString('id-ID')})
+                {w.source} - Rp{Number(w.balance).toLocaleString('id-ID')}
               </option>
             ))}
           </select>
