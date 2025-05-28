@@ -34,7 +34,7 @@ export default function TargetFinansialPage() {
           }}
           aria-hidden="true"
         >
-          🎯
+          💳
         </div>
       </main>
 
