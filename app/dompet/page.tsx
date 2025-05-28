@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PlusCircle, ArrowLeft, Trash } from 'lucide-react';
+import { Plus, ArrowLeft, Trash } from 'lucide-react';
 import Link from 'next/link';
 import { db, auth } from '@/lib/firebase';
 import {
@@ -107,7 +107,7 @@ export default function DompetPage() {
 
       {/* Total Balance */}
       <div className="px-4 mt-4">
-        <div className="bg-blue-600 text-white rounded-xl p-4 shadow">
+        <div className="bg-gradient-to-br from-[#122d5b] to-[#13223c] text-white rounded-xl p-4 shadow">
           <p className="text-sm opacity-80">Total Balance</p>
           <h2 className="text-3xl font-bold">{formatCurrency(total)}</h2>
         </div>
@@ -158,9 +158,9 @@ export default function DompetPage() {
       {/* Tambah Dompet Button */}
       <Link
         href="/dompet/tambah"
-        className="fixed bottom-5 right-5 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition"
+        className="fixed bottom-5 right-5 bg-[#122d5b] text-white p-4 rounded-full shadow-lg hover:bg-[#0f234e] transition"
       >
-        <PlusCircle className="w-6 h-6" />
+        <Plus className="w-6 h-6" />
       </Link>
 
       {/* Pop-up Konfirmasi Hapus */}

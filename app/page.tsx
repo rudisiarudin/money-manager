@@ -2,26 +2,31 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Home,
-  Clock,
-  Plus,
-  User,
-  DollarSign,
   Eye,
   EyeOff,
   Sun,
   Moon,
   CloudSun,
   CloudMoon,
+  Home,
+  Clock,
+  Plus,
+  DollarSign,
+  UserRound,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
-// Format Rupiah
+import TambahTransaksiModal from '@/components/TambahTransaksiModal';
+
+// Import font Montserrat
+import { Montserrat } from 'next/font/google';
+const montserrat = Montserrat({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-montserrat' });
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -30,7 +35,6 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-// Greeting & message sesuai waktu
 function getGreetingAndMessage() {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 10) {
@@ -76,12 +80,14 @@ export default function HomePage() {
   const [income, setIncome] = useState(0);
   const [expense, setExpense] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState<number>(0);
   const router = useRouter();
 
   useEffect(() => {
     let unsubscribeTx: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         router.push('/login');
         return;
@@ -90,6 +96,19 @@ export default function HomePage() {
       const fullName = user.displayName || user.email?.split('@')[0] || 'User';
       const firstName = fullName.split(' ')[0];
       setUserName(firstName);
+
+      // Ambil dailyLimit dari users collection
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          if (data.dailyLimit) {
+            setDailyLimit(data.dailyLimit);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching daily limit:', error);
+      }
 
       const txQuery = query(
         collection(db, 'transactions'),
@@ -112,24 +131,26 @@ export default function HomePage() {
   }, [router]);
 
   useEffect(() => {
-    if (transactions.length > 0) {
-      const totalIncome = transactions
-        .filter((tx) => tx.type === 'income')
-        .reduce((sum, tx) => sum + tx.amount, 0);
+    const totalIncome = transactions
+      .filter((tx) => tx.type === 'income')
+      .reduce((sum, tx) => sum + tx.amount, 0);
 
-      const totalExpense = transactions
-        .filter((tx) => tx.type === 'expense')
-        .reduce((sum, tx) => sum + tx.amount, 0);
+    const totalExpense = transactions
+      .filter((tx) => tx.type === 'expense')
+      .reduce((sum, tx) => sum + tx.amount, 0);
 
-      setIncome(totalIncome);
-      setExpense(totalExpense);
-    }
+    setIncome(totalIncome);
+    setExpense(totalExpense);
   }, [transactions]);
 
+  useEffect(() => {
+    const openModalHandler = () => setIsModalOpen(true);
+    window.addEventListener('openTambahModal', openModalHandler);
+    return () => window.removeEventListener('openTambahModal', openModalHandler);
+  }, []);
+
   const sortedTransactions = [...transactions].sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    return dateB - dateA;
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
   const today = new Date().toISOString().split('T')[0];
@@ -146,141 +167,182 @@ export default function HomePage() {
   const { greeting, icon, message } = getGreetingAndMessage();
 
   if (loading) {
-    return <div className="min-h-screen flex justify-center items-center">Loading...</div>;
+    return <div className="min-h-screen flex justify-center items-center font-sans">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F9FA] flex flex-col pb-20 px-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-      {/* Header */}
-      <header className="pt-6 flex items-center gap-3">
-        <Image src="/logo.png" alt="Logo" width={48} height={48} className="object-contain" />
-        <h1 className="text-2xl font-extrabold">
-          <span className="text-[#122d5b]">Artos</span>
-          <span className="text-[#f4a923]">Ku</span>
-        </h1>
-      </header>
+    <>
+      <div
+        className={`${montserrat.className} min-h-screen bg-[#F7F9FA] flex flex-col pb-24 px-4 font-sans`}
+      >
+        {/* Header */}
+        <header className="pt-6 flex items-center gap-3">
+          <Image src="/logo.png" alt="Logo" width={48} height={48} />
+          <h1 className="text-2xl font-extrabold">
+            <span className="text-[#122d5b]">Artos</span>
+            <span className="text-[#f4a923]">Ku</span>
+          </h1>
+        </header>
 
-      {/* Greeting */}
-      <section className="mt-2 flex items-center gap-2">
-        <div className="text-[#122d5b] text-lg flex items-center gap-1 font-semibold">
-          {icon} {greeting}, <span className="font-bold">{userName}!</span>
-        </div>
-      </section>
-      <p className="text-sm text-gray-600 font-medium mb-3">{message}</p>
+        {/* Greeting */}
+        <section className="mt-2 flex items-center gap-2">
+          <div className="text-[#122d5b] text-lg flex items-center gap-1 font-semibold">
+            {icon} {greeting}, <span className="font-bold">{userName}!</span>
+          </div>
+        </section>
+        <p className="text-sm text-gray-600 font-medium mb-3">{message}</p>
 
-      {/* Balance Card */}
-      <section>
-        <div className="bg-gradient-to-br from-[#122d5b] to-[#13223c] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
-         <div className="mb-6">
-  <p className="text-xs opacity-80">Total Saldo</p>
-  <div className="flex items-center gap-2 mt-1">
-    <h1 className="text-2xl font-bold">
-      {showBalance ? formatCurrency(income - expense) : '••••••'}
-    </h1>
-    <button onClick={() => setShowBalance(!showBalance)} aria-label="Toggle saldo" className="text-white opacity-70 hover:opacity-100 transition">
-      {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
-    </button>
-  </div>
-</div>
-          <div className="flex justify-between text-xs opacity-70">
-            <div className="text-green-400">
-              <p className="uppercase font-semibold">Pemasukan</p>
-              <p>{formatCurrency(income)}</p>
+        {/* Balance Card */}
+        <section>
+          <div className="bg-gradient-to-br from-[#122d5b] to-[#13223c] text-white rounded-2xl p-5 shadow-lg">
+            <p className="text-xs opacity-80">Total Saldo</p>
+            <div className="flex items-center gap-2 mt-1 mb-4">
+              <h1 className="text-2xl font-bold">
+                {showBalance ? formatCurrency(income - expense) : '••••••'}
+              </h1>
+              <button onClick={() => setShowBalance(!showBalance)}>
+                {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
-            <div className="border-l border-white/40" />
-            <div className="text-red-400">
-              <p className="uppercase font-semibold">Pengeluaran</p>
-              <p>{formatCurrency(expense)}</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Ringkasan Pengeluaran Hari Ini & Kemarin */}
-      <section className="mt-4 bg-white rounded-xl p-4 shadow-sm flex justify-around text-center text-[#122d5b]">
-        <div>
-          <p className="text-xs text-gray-500">Pengeluaran Hari Ini</p>
-          <p className="font-semibold text-lg">{formatCurrency(expenseToday)}</p>
-        </div>
-        <div className="border-l border-gray-300" />
-        <div>
-          <p className="text-xs text-gray-500">Pengeluaran Kemarin</p>
-          <p className="font-semibold text-lg">{formatCurrency(expenseYesterday)}</p>
-        </div>
-      </section>
-
-      {/* Alert Pengeluaran Hari Ini */}
-      <section className="mt-3">
-        {expenseToday > 100000 ? (
-          <div className="bg-red-100 text-red-700 rounded-md p-3 text-center font-semibold">
-            ⚠️ Boros! Pengeluaranmu hari ini cukup besar.
-          </div>
-        ) : expenseToday > 30000 ? (
-          <div className="bg-yellow-100 text-yellow-700 rounded-md p-3 text-center font-semibold">
-            💡 Berhemat ya, jangan boros.
-          </div>
-        ) : (
-          <div className="bg-green-100 text-green-700 rounded-md p-3 text-center font-semibold">
-            🎉 Hemat banget, lanjutkan terus!
-          </div>
-        )}
-      </section>
-
-      {/* Recent Transactions Header */}
-      <section className="mt-5 flex justify-between items-center mb-2">
-        <h3 className="font-semibold text-[#122d5b]">Transaksi Terbaru</h3>
-        <Link href="/history" className="text-sm text-[#122d5b] font-medium hover:underline">
-          Lihat Semua
-        </Link>
-      </section>
-
-      {/* Recent Transactions List */}
-      <section className="flex flex-col gap-2 max-h-60 overflow-auto">
-        {sortedTransactions.slice(0, 5).map((tx) => (
-          <div
-            key={tx.id}
-            className="flex justify-between items-center p-3 rounded-lg bg-white shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <div className="text-2xl">{icons[tx.category] || '📦'}</div>
-              <div>
-                <p className="font-semibold text-[#122d5b]">{tx.title}</p>
-                <p className="text-xs text-gray-400">{tx.date}</p>
+            <div className="flex justify-between text-xs opacity-70">
+              <div className="text-green-400">
+                <p className="uppercase font-semibold">Pemasukan</p>
+                <p>{formatCurrency(income)}</p>
+              </div>
+              <div className="border-l border-white/40" />
+              <div className="text-red-400">
+                <p className="uppercase font-semibold">Pengeluaran</p>
+                <p>{formatCurrency(expense)}</p>
               </div>
             </div>
-            <div className={tx.type === 'income' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-              {tx.type === 'income' ? '+' : '-'} {formatCurrency(tx.amount)}
-            </div>
           </div>
-        ))}
-      </section>
+        </section>
 
-      {/* Bottom Navbar with center plus button */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-between items-center h-16 px-6 shadow-inner">
-        <Link href="/" className="text-[#122d5b] hover:text-[#0f234e] transition">
-          <Home size={26} />
+        {/* Ringkasan Harian */}
+        <section className="mt-4 bg-white rounded-xl p-4 shadow-sm flex justify-around text-center text-[#122d5b]">
+          <div>
+            <p className="text-xs text-gray-500">Hari Ini</p>
+            <p className="font-semibold text-lg">{formatCurrency(expenseToday)}</p>
+          </div>
+          <div className="border-l border-gray-300" />
+          <div>
+            <p className="text-xs text-gray-500">Kemarin</p>
+            <p className="font-semibold text-lg">{formatCurrency(expenseYesterday)}</p>
+          </div>
+        </section>
+
+        {/* Alert Notifikasi Limit */}
+        <section className="mt-3">
+          {dailyLimit > 0 && (
+            expenseToday > dailyLimit ? (
+              <div className="bg-red-100 text-red-700 rounded-md p-3 text-center font-semibold">
+                ⚠️ Kamu sudah melebihi limit pengeluaran harian Rp{dailyLimit.toLocaleString('id-ID')}!
+              </div>
+            ) : expenseToday > dailyLimit * 0.7 ? (
+              <div className="bg-yellow-100 text-yellow-700 rounded-md p-3 text-center font-semibold">
+                ⚠️ Pengeluaranmu sudah mendekati limit harian Rp{dailyLimit.toLocaleString('id-ID')}. Hati-hati ya!
+              </div>
+            ) : (
+              <div className="bg-green-100 text-green-700 rounded-md p-3 text-center font-semibold">
+                🎉 Pengeluaranmu masih dalam batas limit harian Rp{dailyLimit.toLocaleString('id-ID')}.
+              </div>
+            )
+          )}
+        </section>
+
+        {/* Menu Fitur Tambahan */}
+        <section className="mt-5 grid grid-cols-3 gap-4">
+          <Link
+            href="/split-bill"
+            className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2"
+          >
+            <span className="text-3xl">🤝</span>
+            <p className="font-semibold text-[#122d5b] text-center">Split</p>
+          </Link>
+
+          <Link
+            href="/hutang-piutang"
+            className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2"
+          >
+            <span className="text-3xl">💳</span>
+            <p className="font-semibold text-[#122d5b] text-center">Hutang</p>
+          </Link>
+
+          <Link
+            href="/target-finansial"
+            className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2"
+          >
+            <span className="text-3xl">🎯</span>
+            <p className="font-semibold text-[#122d5b] text-center">Target</p>
+          </Link>
+        </section>
+
+        {/* Transaksi Terbaru */}
+        <section className="mt-5 flex justify-between items-center mb-2">
+          <h3 className="font-semibold text-[#122d5b]">Transaksi Terbaru</h3>
+          <Link href="/history" className="text-sm text-[#122d5b] font-medium hover:underline">
+            Lihat Semua
+          </Link>
+        </section>
+
+        <section className="flex flex-col gap-2 max-h-60 overflow-auto">
+          {sortedTransactions.slice(0, 5).map((tx) => (
+            <div key={tx.id} className="flex justify-between items-center bg-white rounded-xl shadow-sm px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">{icons[tx.category] || '📌'}</div>
+                <div>
+                  <p className="font-semibold text-[#122d5b]">{tx.title}</p>
+                  <p className="text-xs text-gray-400">{tx.date}</p>
+                </div>
+              </div>
+              <p className={`font-semibold ${tx.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
+                {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+              </p>
+            </div>
+          ))}
+          {sortedTransactions.length === 0 && (
+            <p className="text-center text-gray-400 font-medium mt-4">Belum ada transaksi</p>
+          )}
+        </section>
+
+        {/* Modal Tambah Transaksi */}
+        
+          <TambahTransaksiModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
+        
+      </div>
+
+      {/* Navbar Bawah */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-3 px-2 shadow-md">
+        <Link href="/" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+          <Home size={20} />
+          <span className="text-xs mt-1 font-medium">Beranda</span>
         </Link>
-        <Link href="/history" className="text-[#122d5b] hover:text-[#0f234e] transition">
-          <Clock size={26} />
+        <Link href="/history" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+          <Clock size={20} />
+          <span className="text-xs mt-1 font-medium">Riwayat</span>
         </Link>
 
-        {/* Add transaction button center */}
+        {/* Tombol Tengah Tambah */}
         <button
-          onClick={() => router.push('/tambah')}
+          onClick={() => setIsModalOpen(true)}
           aria-label="Tambah Transaksi"
-          className="bg-[#122d5b] hover:bg-[#0f234e] text-white rounded-full p-3 flex items-center justify-center shadow-lg -mt-10"
-          style={{ width: 56, height: 56 }}
+          className="flex flex-col items-center text-white bg-[#122d5b] rounded-full p-3 shadow-lg -mt-6 w-14 h-14 justify-center hover:bg-yellow-400 transition-colors duration-200"
         >
-          <Plus size={32} />
+          <Plus size={24} />
         </button>
 
-        <Link href="/dompet" className="text-[#122d5b] hover:text-[#0f234e] transition">
-          <DollarSign size={26} />
+        <Link href="/dompet" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+          <DollarSign size={20} />
+          <span className="text-xs mt-1 font-medium">Keuangan</span>
         </Link>
-        <Link href="/profile" className="text-[#122d5b] hover:text-[#0f234e] transition">
-          <User size={26} />
+        <Link href="/profile" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+          <UserRound size={20} />
+          <span className="text-xs mt-1 font-medium">Profil</span>
         </Link>
       </nav>
-    </div>
+    </>
   );
 }
