@@ -306,12 +306,9 @@ export default function HomePage() {
         </section>
 
         {/* Modal Tambah Transaksi */}
-        
-          <TambahTransaksiModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
-        
+        {isModalOpen && (
+          <TambahTransaksiModal onClose={() => setIsModalOpen(false)} />
+        )}
       </div>
 
       {/* Navbar Bawah */}
@@ -329,7 +326,7 @@ export default function HomePage() {
         <button
           onClick={() => setIsModalOpen(true)}
           aria-label="Tambah Transaksi"
-          className="flex flex-col items-center text-white bg-[#122d5b] rounded-full p-3 shadow-lg -mt-6 w-14 h-14 justify-center hover:bg-yellow-400 transition-colors duration-200"
+          className="flex flex-col items-center text-white bg-[#f4a923] rounded-full p-3 shadow-lg -mt-6 w-14 h-14 justify-center hover:bg-yellow-400 transition-colors duration-200"
         >
           <Plus size={24} />
         </button>
