@@ -13,6 +13,7 @@ import {
   doc,
   query,
   where,
+  getDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -22,7 +23,7 @@ const walletOptions = [
   { source: 'Sea Bank', icon: '/banks/seabank.png' },
   { source: 'Jenius', icon: '/banks/jenius.png' },
   { source: 'Dompet Fisik', icon: '/banks/cash.png' },
-  { source: 'Bank Lain', icon: '/banks/default.png' }, // Sudah diubah
+  { source: 'Bank Lain', icon: '/banks/default.png' },
 ];
 
 const incomeCategoriesWithIcon = [
@@ -48,14 +49,38 @@ export default function TambahDompetPage() {
   const [amount, setAmount] = useState('');
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [user, setUser] = useState<null | { uid: string }>(null);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+
+  async function checkUserProfileComplete(userId: string) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) return false;
+
+      const data = snap.data();
+      return Boolean(data?.name && data?.gender && data?.birthdate);
+    } catch (error) {
+      console.error('Error checking user profile:', error);
+      return false;
+    }
+  }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         router.push('/login');
-      } else {
-        setUser(currentUser);
-        fetchWallets(currentUser.uid);
+        return;
+      }
+
+      setUser(currentUser);
+      fetchWallets(currentUser.uid);
+
+      const complete = await checkUserProfileComplete(currentUser.uid);
+      setProfileComplete(complete);
+
+      if (!complete) {
+        const confirm = window.confirm('Profil Anda belum lengkap. Ingin melengkapi sekarang?');
+        if (confirm) router.push('/profile/edit');
       }
     });
 
@@ -83,73 +108,98 @@ export default function TambahDompetPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!user) {
-      alert('User tidak terautentikasi');
-      return;
-    }
+  if (!user) {
+    alert('User tidak terautentikasi');
+    return;
+  }
 
-    if (!selectedSource || !amount) {
-      alert('Pilih dompet dan masukkan saldo');
-      return;
-    }
+  const complete = await checkUserProfileComplete(user.uid);
+  if (!complete) {
+    const confirm = window.confirm('Profil belum lengkap. Ingin melengkapi sekarang?');
+    if (confirm) router.push('/profile/edit');
+    return;
+  }
 
-    const isCustom = selectedSource === 'Bank Lain';
-    const finalSource = isCustom ? customSourceName.trim() : selectedSource;
-    const selectedIcon = walletOptions.find(w => w.source === selectedSource)?.icon || '/banks/default.png';
+  if (!selectedSource || !amount) {
+    alert('Pilih dompet dan masukkan saldo');
+    return;
+  }
 
-    if (!finalSource) {
-      alert('Masukkan nama bank/dompet');
-      return;
-    }
+  const isCustom = selectedSource === 'Bank Lain';
+  const finalSource = isCustom ? customSourceName.trim() : selectedSource;
+  const selectedIcon =
+    walletOptions.find((w) => w.source === selectedSource)?.icon || '/banks/default.png';
 
-    const cleanAmount = parseInt(amount.replace(/\./g, ''));
-    if (isNaN(cleanAmount) || cleanAmount <= 0) {
-      alert('Nominal tidak valid.');
-      return;
-    }
+  if (!finalSource) {
+    alert('Masukkan nama bank/dompet');
+    return;
+  }
 
-    const now = new Date();
-    const existingWallet = wallets.find((w) => w.source === finalSource);
+  const cleanAmount = parseInt(amount.replace(/\./g, ''));
+  if (isNaN(cleanAmount) || cleanAmount <= 0) {
+    alert('Nominal tidak valid.');
+    return;
+  }
 
-    try {
-      if (existingWallet) {
-        const newBalance = existingWallet.balance + cleanAmount;
-        const walletRef = doc(db, 'wallets', existingWallet.id);
-        await updateDoc(walletRef, { balance: newBalance });
-      } else {
-        await addDoc(collection(db, 'wallets'), {
-          source: finalSource,
-          balance: cleanAmount,
-          icon: selectedIcon,
-          createdAt: now,
-          userId: user.uid,
-        });
-      }
+  const now = new Date();
+  const existingWallet = wallets.find((w) => w.source === finalSource);
 
-      await addDoc(collection(db, 'transactions'), {
-        title: `${selectedCategory} - ${finalSource}`,
-        amount: cleanAmount,
-        type: 'income',
-        category: selectedCategory,
+  try {
+    let walletId = '';
+
+    if (existingWallet) {
+      const newBalance = existingWallet.balance + cleanAmount;
+      const walletRef = doc(db, 'wallets', existingWallet.id);
+      await updateDoc(walletRef, { balance: newBalance });
+      walletId = existingWallet.id;
+    } else {
+      const walletDoc = await addDoc(collection(db, 'wallets'), {
         source: finalSource,
-        date: now.toISOString().split('T')[0],
+        balance: cleanAmount,
+        icon: selectedIcon,
         createdAt: now,
         userId: user.uid,
       });
-
-      router.push('/dompet');
-    } catch (error) {
-      console.error('Gagal menyimpan data:', error);
-      alert('Terjadi kesalahan saat menyimpan data.');
+      walletId = walletDoc.id;
     }
-  };
+
+    // ✅ Debug log untuk memastikan walletId ada
+    console.log('walletId to be saved:', walletId);
+
+    await addDoc(collection(db, 'transactions'), {
+      title: `${selectedCategory} - ${finalSource}`,
+      amount: cleanAmount,
+      type: 'income',
+      category: selectedCategory,
+      source: finalSource,
+      walletId: walletId,
+      date: now.toISOString().split('T')[0],
+      createdAt: now,
+      userId: user.uid,
+    });
+
+    router.push('/dompet');
+  } catch (error) {
+    console.error('Gagal menyimpan data:', error);
+    alert('Terjadi kesalahan saat menyimpan data.');
+  }
+};
+
 
   const formatNumber = (value: string) => {
     const num = value.replace(/\D/g, '');
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
+
+  if (profileComplete === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Memeriksa profil...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -188,7 +238,6 @@ export default function TambahDompetPage() {
             ))}
           </div>
 
-          {/* Input manual jika pilih Bank Lain */}
           {selectedSource === 'Bank Lain' && (
             <input
               type="text"
@@ -213,7 +262,7 @@ export default function TambahDompetPage() {
                   selectedCategory === name ? 'border-blue-600 bg-blue-50' : ''
                 }`}
               >
-                <span className="text-xl select-none">{icon}</span>
+                <span className="text-xl">{icon}</span>
                 <span>{name}</span>
               </button>
             ))}
