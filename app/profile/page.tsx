@@ -1,10 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  User,
+  signOut,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  deleteUser,
+} from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -32,6 +39,10 @@ export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [loadingDelete, setLoadingDelete] = useState(false);
 
   const router = useRouter();
 
@@ -64,6 +75,7 @@ export default function ProfilePage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowLogoutConfirm(false);
+        setShowDeleteAccountModal(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -71,17 +83,53 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (showLogoutConfirm) {
+    if (showLogoutConfirm || showDeleteAccountModal) {
       document.body.classList.add('overflow-hidden');
     } else {
       document.body.classList.remove('overflow-hidden');
     }
     return () => document.body.classList.remove('overflow-hidden');
-  }, [showLogoutConfirm]);
+  }, [showLogoutConfirm, showDeleteAccountModal]);
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/login');
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    if (!user) return;
+    if (!deletePassword) {
+      setDeleteError('Password wajib diisi.');
+      return;
+    }
+
+    setLoadingDelete(true);
+    try {
+      // Reauthenticate user
+      const credential = EmailAuthProvider.credential(user.email!, deletePassword);
+      await reauthenticateWithCredential(user, credential);
+
+      // Hapus data user di Firestore (optional)
+      await deleteDoc(doc(db, 'users', user.uid));
+
+      // Hapus akun user
+      await deleteUser(user);
+
+      // Setelah hapus akun redirect ke login
+      router.push('/login');
+    } catch (error: any) {
+      console.error('Gagal menghapus akun:', error);
+      if (error.code === 'auth/wrong-password') {
+        setDeleteError('Password salah, coba lagi.');
+      } else if (error.code === 'auth/requires-recent-login') {
+        setDeleteError('Session sudah lama, silakan logout lalu login ulang.');
+      } else {
+        setDeleteError('Gagal menghapus akun. Silakan coba lagi.');
+      }
+    } finally {
+      setLoadingDelete(false);
+    }
   };
 
   if (!user || !userData) {
@@ -159,6 +207,12 @@ export default function ProfilePage() {
             >
               Keluar
             </button>
+            <button
+              onClick={() => setShowDeleteAccountModal(true)}
+              className="block w-full text-center bg-red-800 text-white py-2 rounded-md hover:bg-red-900 transition font-medium mt-3"
+            >
+              Hapus Akun
+            </button>
           </div>
         </div>
       </div>
@@ -197,6 +251,66 @@ export default function ProfilePage() {
                   className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-700 transition"
                 >
                   Keluar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* POPUP DELETE ACCOUNT */}
+      <AnimatePresence>
+        {showDeleteAccountModal && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setShowDeleteAccountModal(false);
+              setDeletePassword('');
+              setDeleteError('');
+            }}
+          >
+            <motion.div
+              className="bg-white rounded-2xl p-6 w-full max-w-md mx-auto"
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: '0%', opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', bounce: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Konfirmasi Hapus Akun</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Masukkan password akun kamu untuk konfirmasi penghapusan akun.
+              </p>
+              <input
+                type="password"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                disabled={loadingDelete}
+              />
+              {deleteError && <p className="text-red-600 text-sm mb-2">{deleteError}</p>}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteAccountModal(false);
+                    setDeletePassword('');
+                    setDeleteError('');
+                  }}
+                  disabled={loadingDelete}
+                  className="px-4 py-2 text-sm rounded-md bg-gray-200 hover:bg-gray-300 transition"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={loadingDelete}
+                  className="px-4 py-2 text-sm rounded-md bg-red-700 text-white hover:bg-red-800 transition"
+                >
+                  {loadingDelete ? 'Memproses...' : 'Hapus Akun'}
                 </button>
               </div>
             </motion.div>
