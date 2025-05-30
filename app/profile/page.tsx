@@ -9,6 +9,7 @@ import {
   reauthenticateWithCredential,
   deleteUser,
 } from 'firebase/auth';
+import { FirebaseError } from 'firebase/app';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
@@ -30,7 +31,7 @@ const genderIcon: Record<string, string> = {
   'Lainnya': '⚧️',
 };
 
-const getGenderDisplay = (gender: string | undefined) => {
+const getGenderDisplay = (gender?: string) => {
   const icon = genderIcon[gender as keyof typeof genderIcon] || '⚧️';
   return `${icon} ${gender || '-'}`;
 };
@@ -47,25 +48,27 @@ export default function ProfilePage() {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (!currentUser) {
         router.push('/login');
         return;
       }
       setUser(currentUser);
 
-      const docRef = doc(db, 'users', currentUser.uid);
-      try {
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          setUserData(snap.data() as UserData);
-        } else {
+      (async () => {
+        try {
+          const docRef = doc(db, 'users', currentUser.uid);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            setUserData(snap.data() as UserData);
+          } else {
+            setUserData({ name: 'Pengguna' });
+          }
+        } catch (error) {
+          console.error('Gagal mengambil data user:', error);
           setUserData({ name: 'Pengguna' });
         }
-      } catch (error) {
-        console.error('Gagal mengambil data user:', error);
-        setUserData({ name: 'Pengguna' });
-      }
+      })();
     });
 
     return () => unsubscribe();
@@ -92,8 +95,12 @@ export default function ProfilePage() {
   }, [showLogoutConfirm, showDeleteAccountModal]);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/login');
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch {
+      alert('Gagal logout. Silakan coba lagi.');
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -106,26 +113,24 @@ export default function ProfilePage() {
 
     setLoadingDelete(true);
     try {
-      // Reauthenticate user
       const credential = EmailAuthProvider.credential(user.email!, deletePassword);
       await reauthenticateWithCredential(user, credential);
-
-      // Hapus data user di Firestore (optional)
       await deleteDoc(doc(db, 'users', user.uid));
-
-      // Hapus akun user
       await deleteUser(user);
-
-      // Setelah hapus akun redirect ke login
       router.push('/login');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Gagal menghapus akun:', error);
-      if (error.code === 'auth/wrong-password') {
-        setDeleteError('Password salah, coba lagi.');
-      } else if (error.code === 'auth/requires-recent-login') {
-        setDeleteError('Session sudah lama, silakan logout lalu login ulang.');
+
+      if (error instanceof FirebaseError) {
+        if (error.code === 'auth/wrong-password') {
+          setDeleteError('Password salah, coba lagi.');
+        } else if (error.code === 'auth/requires-recent-login') {
+          setDeleteError('Session sudah lama, silakan logout lalu login ulang.');
+        } else {
+          setDeleteError('Gagal menghapus akun. Silakan coba lagi.');
+        }
       } else {
-        setDeleteError('Gagal menghapus akun. Silakan coba lagi.');
+        setDeleteError('Terjadi kesalahan tidak dikenal.');
       }
     } finally {
       setLoadingDelete(false);
@@ -141,10 +146,12 @@ export default function ProfilePage() {
   }
 
   const initials = userData.name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
+    ? userData.name
+        .split(' ')
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase()
+    : 'U';
 
   return (
     <div className="min-h-screen bg-gray-100 pb-24 relative">
@@ -154,7 +161,7 @@ export default function ProfilePage() {
           <ArrowLeft size={24} />
         </Link>
         <h1 className="text-lg font-semibold text-gray-800">Profil</h1>
-        <div className="w-6" /> {/* Spacer */}
+        <div className="w-6" />
       </div>
 
       <div className="max-w-md mx-auto mt-6 px-4">
@@ -217,7 +224,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* POPUP LOGOUT CONFIRM */}
+      {/* Popup Logout */}
       <AnimatePresence>
         {showLogoutConfirm && (
           <motion.div
@@ -258,7 +265,7 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* POPUP DELETE ACCOUNT */}
+      {/* Popup Hapus Akun */}
       <AnimatePresence>
         {showDeleteAccountModal && (
           <motion.div
@@ -286,6 +293,7 @@ export default function ProfilePage() {
               </p>
               <input
                 type="password"
+                autoComplete="current-password"
                 className="w-full border border-gray-300 rounded-md px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Password"
                 value={deletePassword}
