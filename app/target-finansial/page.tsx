@@ -132,8 +132,8 @@ export default function TargetFinansialPage() {
       {/* Header */}
       <div className="mb-4 flex items-center gap-4">
         <button
-          onClick={() => router.back()}
-          aria-label="Kembali ke halaman sebelumnya"
+          onClick={() => router.push('/')}
+          aria-label="Kembali ke Hoem"
           className="text-[#122d5b] hover:text-[#0f2345] transition"
         >
           <ArrowLeft size={24} />
