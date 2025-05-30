@@ -306,9 +306,9 @@ export default function HomePage() {
         </section>
 
         {/* Modal Tambah Transaksi */}
-        {isModalOpen && (
-          <TambahTransaksiModal onClose={() => setIsModalOpen(false)} />
-        )}
+       {isModalOpen && (
+  <TambahTransaksiModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+)}
       </div>
 
       {/* Navbar Bawah */}
