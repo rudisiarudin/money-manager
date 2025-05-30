@@ -16,7 +16,14 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDoc,
+} from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -73,8 +80,16 @@ type Transaction = {
   source: string;
 };
 
+type TargetFinancial = {
+  id: string;
+  name: string;
+  amount: number;
+  targetDate: string;
+};
+
 export default function HomePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [targetFinancials, setTargetFinancials] = useState<TargetFinancial[]>([]);
   const [showBalance, setShowBalance] = useState(true);
   const [userName, setUserName] = useState<string | null>(null);
   const [income, setIncome] = useState(0);
@@ -86,6 +101,7 @@ export default function HomePage() {
 
   useEffect(() => {
     let unsubscribeTx: (() => void) | null = null;
+    let unsubscribeTarget: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -97,7 +113,6 @@ export default function HomePage() {
       const firstName = fullName.split(' ')[0];
       setUserName(firstName);
 
-      // Ambil dailyLimit dari users collection
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
@@ -122,11 +137,24 @@ export default function HomePage() {
         setTransactions(txData);
         setLoading(false);
       });
+
+      const targetQuery = query(
+        collection(db, 'targetFinancials'),
+        where('userId', '==', user.uid)
+      );
+      unsubscribeTarget = onSnapshot(targetQuery, (snapshot) => {
+        const targetData: TargetFinancial[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<TargetFinancial, 'id'>),
+        }));
+        setTargetFinancials(targetData);
+      });
     });
 
     return () => {
       unsubscribeAuth();
       if (unsubscribeTx) unsubscribeTx();
+      if (unsubscribeTarget) unsubscribeTarget();
     };
   }, [router]);
 
@@ -164,6 +192,8 @@ export default function HomePage() {
     .filter((tx) => tx.type === 'expense' && tx.date.startsWith(yesterday))
     .reduce((sum, tx) => sum + tx.amount, 0);
 
+  const totalTarget = targetFinancials.reduce((sum, target) => sum + target.amount, 0);
+
   const { greeting, icon, message } = getGreetingAndMessage();
 
   if (loading) {
@@ -172,9 +202,7 @@ export default function HomePage() {
 
   return (
     <>
-      <div
-        className={`${montserrat.className} min-h-screen bg-[#F7F9FA] flex flex-col pb-24 px-4 font-sans`}
-      >
+      <div className={`${montserrat.className} min-h-screen bg-[#F7F9FA] flex flex-col pb-24 px-4 font-sans`}>
         {/* Header */}
         <header className="pt-6 flex items-center gap-3">
           <Image src="/logo.png" alt="Logo" width={48} height={48} />
@@ -198,7 +226,7 @@ export default function HomePage() {
             <p className="text-xs opacity-80">Total Saldo</p>
             <div className="flex items-center gap-2 mt-1 mb-4">
               <h1 className="text-2xl font-bold">
-                {showBalance ? formatCurrency(income - expense) : '••••••'}
+                {showBalance ? formatCurrency(income - expense - totalTarget) : '••••••'}
               </h1>
               <button onClick={() => setShowBalance(!showBalance)}>
                 {showBalance ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -252,26 +280,15 @@ export default function HomePage() {
 
         {/* Menu Fitur Tambahan */}
         <section className="mt-5 grid grid-cols-3 gap-4">
-          <Link
-            href="/split-bill"
-            className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2"
-          >
+          <Link href="/split-bill" className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2">
             <span className="text-3xl">🤝</span>
             <p className="font-semibold text-[#122d5b] text-center">Split</p>
           </Link>
-
-          <Link
-            href="/hutang-piutang"
-            className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2"
-          >
+          <Link href="/hutang-piutang" className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2">
             <span className="text-3xl">💳</span>
             <p className="font-semibold text-[#122d5b] text-center">Hutang</p>
           </Link>
-
-          <Link
-            href="/target-finansial"
-            className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2"
-          >
+          <Link href="/target-finansial" className="bg-white rounded-xl shadow-sm p-4 flex flex-col items-center gap-2">
             <span className="text-3xl">🎯</span>
             <p className="font-semibold text-[#122d5b] text-center">Target</p>
           </Link>
@@ -305,10 +322,9 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Modal Tambah Transaksi */}
-       {isModalOpen && (
-  <TambahTransaksiModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-)}
+        {isModalOpen && (
+          <TambahTransaksiModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+        )}
       </div>
 
       {/* Navbar Bawah */}
@@ -321,8 +337,6 @@ export default function HomePage() {
           <Clock size={20} />
           <span className="text-xs mt-1 font-medium">Riwayat</span>
         </Link>
-
-        {/* Tombol Tengah Tambah */}
         <button
           onClick={() => setIsModalOpen(true)}
           aria-label="Tambah Transaksi"
@@ -330,7 +344,6 @@ export default function HomePage() {
         >
           <Plus size={24} />
         </button>
-
         <Link href="/dompet" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
           <DollarSign size={20} />
           <span className="text-xs mt-1 font-medium">Keuangan</span>

@@ -24,10 +24,6 @@ export default function RootLayout({
   return (
     <html lang="id">
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body className={`${inter.className} bg-gray-50 min-h-screen`}>
         {children}

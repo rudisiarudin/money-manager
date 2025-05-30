@@ -51,6 +51,9 @@ export default function TambahDompetPage() {
   const [user, setUser] = useState<null | { uid: string }>(null);
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
+  // STATE untuk custom modal popup profil belum lengkap
+  const [showProfileModal, setShowProfileModal] = useState(false);
+
   async function checkUserProfileComplete(userId: string) {
     try {
       const userRef = doc(db, 'users', userId);
@@ -79,8 +82,8 @@ export default function TambahDompetPage() {
       setProfileComplete(complete);
 
       if (!complete) {
-        const confirm = window.confirm('Profil Anda belum lengkap. Ingin melengkapi sekarang?');
-        if (confirm) router.push('/profile/edit');
+        // Tampilkan custom modal (ganti window.confirm)
+        setShowProfileModal(true);
       }
     });
 
@@ -108,85 +111,83 @@ export default function TambahDompetPage() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!user) {
-    alert('User tidak terautentikasi');
-    return;
-  }
+    if (!user) {
+      alert('User tidak terautentikasi');
+      return;
+    }
 
-  const complete = await checkUserProfileComplete(user.uid);
-  if (!complete) {
-    const confirm = window.confirm('Profil belum lengkap. Ingin melengkapi sekarang?');
-    if (confirm) router.push('/profile/edit');
-    return;
-  }
+    const complete = await checkUserProfileComplete(user.uid);
+    if (!complete) {
+      // Tampilkan custom modal di submit juga
+      setShowProfileModal(true);
+      return;
+    }
 
-  if (!selectedSource || !amount) {
-    alert('Pilih dompet dan masukkan saldo');
-    return;
-  }
+    if (!selectedSource || !amount) {
+      alert('Pilih dompet dan masukkan saldo');
+      return;
+    }
 
-  const isCustom = selectedSource === 'Bank Lain';
-  const finalSource = isCustom ? customSourceName.trim() : selectedSource;
-  const selectedIcon =
-    walletOptions.find((w) => w.source === selectedSource)?.icon || '/banks/default.png';
+    const isCustom = selectedSource === 'Bank Lain';
+    const finalSource = isCustom ? customSourceName.trim() : selectedSource;
+    const selectedIcon =
+      walletOptions.find((w) => w.source === selectedSource)?.icon || '/banks/default.png';
 
-  if (!finalSource) {
-    alert('Masukkan nama bank/dompet');
-    return;
-  }
+    if (!finalSource) {
+      alert('Masukkan nama bank/dompet');
+      return;
+    }
 
-  const cleanAmount = parseInt(amount.replace(/\./g, ''));
-  if (isNaN(cleanAmount) || cleanAmount <= 0) {
-    alert('Nominal tidak valid.');
-    return;
-  }
+    const cleanAmount = parseInt(amount.replace(/\./g, ''));
+    if (isNaN(cleanAmount) || cleanAmount <= 0) {
+      alert('Nominal tidak valid.');
+      return;
+    }
 
-  const now = new Date();
-  const existingWallet = wallets.find((w) => w.source === finalSource);
+    const now = new Date();
+    const existingWallet = wallets.find((w) => w.source === finalSource);
 
-  try {
-    let walletId = '';
+    try {
+      let walletId = '';
 
-    if (existingWallet) {
-      const newBalance = existingWallet.balance + cleanAmount;
-      const walletRef = doc(db, 'wallets', existingWallet.id);
-      await updateDoc(walletRef, { balance: newBalance });
-      walletId = existingWallet.id;
-    } else {
-      const walletDoc = await addDoc(collection(db, 'wallets'), {
+      if (existingWallet) {
+        const newBalance = existingWallet.balance + cleanAmount;
+        const walletRef = doc(db, 'wallets', existingWallet.id);
+        await updateDoc(walletRef, { balance: newBalance });
+        walletId = existingWallet.id;
+      } else {
+        const walletDoc = await addDoc(collection(db, 'wallets'), {
+          source: finalSource,
+          balance: cleanAmount,
+          icon: selectedIcon,
+          createdAt: now,
+          userId: user.uid,
+        });
+        walletId = walletDoc.id;
+      }
+
+      console.log('walletId to be saved:', walletId);
+
+      await addDoc(collection(db, 'transactions'), {
+        title: `${selectedCategory} - ${finalSource}`,
+        amount: cleanAmount,
+        type: 'income',
+        category: selectedCategory,
         source: finalSource,
-        balance: cleanAmount,
-        icon: selectedIcon,
+        walletId: walletId,
+        date: now.toISOString().split('T')[0],
         createdAt: now,
         userId: user.uid,
       });
-      walletId = walletDoc.id;
+
+      router.push('/dompet');
+    } catch (error) {
+      console.error('Gagal menyimpan data:', error);
+      alert('Terjadi kesalahan saat menyimpan data.');
     }
-
-    // ✅ Debug log untuk memastikan walletId ada
-    console.log('walletId to be saved:', walletId);
-
-    await addDoc(collection(db, 'transactions'), {
-      title: `${selectedCategory} - ${finalSource}`,
-      amount: cleanAmount,
-      type: 'income',
-      category: selectedCategory,
-      source: finalSource,
-      walletId: walletId,
-      date: now.toISOString().split('T')[0],
-      createdAt: now,
-      userId: user.uid,
-    });
-
-    router.push('/dompet');
-  } catch (error) {
-    console.error('Gagal menyimpan data:', error);
-    alert('Terjadi kesalahan saat menyimpan data.');
-  }
-};
-
+  };
 
   const formatNumber = (value: string) => {
     const num = value.replace(/\D/g, '');
@@ -200,6 +201,39 @@ export default function TambahDompetPage() {
       </div>
     );
   }
+
+  // Komponen Modal Custom untuk konfirmasi lengkapi profil
+  const ProfileIncompleteModal = () => (
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 mx-4">
+        <h2 className="text-lg font-semibold text-red-600 mb-4">Profil Belum Lengkap</h2>
+        <p className="mb-6 text-gray-700">
+          Profil Anda belum lengkap. Apakah Anda ingin melengkapi profil sekarang?
+        </p>
+        <div className="flex justify-end gap-4">
+          <button
+            onClick={() => {
+              setShowProfileModal(false);
+              router.push('/profile/edit');
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition"
+          >
+            Lengkapi Profil
+          </button>
+          <button
+            onClick={() => setShowProfileModal(false)}
+            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition"
+          >
+            Nanti Saja
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -290,6 +324,9 @@ export default function TambahDompetPage() {
           Simpan Dompet
         </button>
       </form>
+
+      {/* Render custom modal jika perlu */}
+      {showProfileModal && <ProfileIncompleteModal />}
     </div>
   );
 }

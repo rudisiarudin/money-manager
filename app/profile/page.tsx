@@ -47,33 +47,33 @@ export default function ProfilePage() {
 
   const router = useRouter();
 
+  // Ambil user saat login dan data profilnya
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         router.push('/login');
         return;
       }
       setUser(currentUser);
 
-      (async () => {
-        try {
-          const docRef = doc(db, 'users', currentUser.uid);
-          const snap = await getDoc(docRef);
-          if (snap.exists()) {
-            setUserData(snap.data() as UserData);
-          } else {
-            setUserData({ name: 'Pengguna' });
-          }
-        } catch (error) {
-          console.error('Gagal mengambil data user:', error);
+      try {
+        const docRef = doc(db, 'users', currentUser.uid);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          setUserData(snap.data() as UserData);
+        } else {
           setUserData({ name: 'Pengguna' });
         }
-      })();
+      } catch (error) {
+        console.error('Gagal mengambil data user:', error);
+        setUserData({ name: 'Pengguna' });
+      }
     });
 
     return () => unsubscribe();
   }, [router]);
 
+  // Handle escape key untuk close popup
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -85,6 +85,7 @@ export default function ProfilePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Disable scroll saat popup aktif
   useEffect(() => {
     if (showLogoutConfirm || showDeleteAccountModal) {
       document.body.classList.add('overflow-hidden');
@@ -94,6 +95,7 @@ export default function ProfilePage() {
     return () => document.body.classList.remove('overflow-hidden');
   }, [showLogoutConfirm, showDeleteAccountModal]);
 
+  // Logout handler
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -103,31 +105,42 @@ export default function ProfilePage() {
     }
   };
 
+  // Delete account dengan re-authenticate
   const handleDeleteAccount = async () => {
     setDeleteError('');
     if (!user) return;
-    if (!deletePassword) {
+    if (!deletePassword.trim()) {
       setDeleteError('Password wajib diisi.');
       return;
     }
 
     setLoadingDelete(true);
+
     try {
+      // Re-authenticate user with email + password
       const credential = EmailAuthProvider.credential(user.email!, deletePassword);
       await reauthenticateWithCredential(user, credential);
+
+      // Delete Firestore user data
       await deleteDoc(doc(db, 'users', user.uid));
+
+      // Delete Firebase Auth user
       await deleteUser(user);
+
       router.push('/login');
     } catch (error: unknown) {
       console.error('Gagal menghapus akun:', error);
 
       if (error instanceof FirebaseError) {
-        if (error.code === 'auth/wrong-password') {
-          setDeleteError('Password salah, coba lagi.');
-        } else if (error.code === 'auth/requires-recent-login') {
-          setDeleteError('Session sudah lama, silakan logout lalu login ulang.');
-        } else {
-          setDeleteError('Gagal menghapus akun. Silakan coba lagi.');
+        switch (error.code) {
+          case 'auth/wrong-password':
+            setDeleteError('Password salah, coba lagi.');
+            break;
+          case 'auth/requires-recent-login':
+            setDeleteError('Session sudah lama, silakan logout lalu login ulang.');
+            break;
+          default:
+            setDeleteError('Gagal menghapus akun. Silakan coba lagi.');
         }
       } else {
         setDeleteError('Terjadi kesalahan tidak dikenal.');
