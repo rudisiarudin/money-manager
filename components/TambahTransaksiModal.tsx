@@ -41,8 +41,10 @@ const categoryOptions: CategoryItem[] = [
 ];
 
 type Props = {
+  isOpen: boolean;
   onClose: () => void;
 };
+
 
 export default function TambahTransaksiModal({ onClose }: Props) {
   const router = useRouter();
