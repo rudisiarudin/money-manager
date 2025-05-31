@@ -230,7 +230,7 @@ export default function HutangPiutangPage() {
         <button
           aria-label="Kembali"
           onClick={() => router.push('/')}
-          className="text-[#122d5b] hover:text-[#f4a923] transition text-xl"
+          className="text-[#122d5b] hover:text-[#244c90] transition text-xl"
         >
           <ArrowLeft />
         </button>
@@ -283,7 +283,7 @@ export default function HutangPiutangPage() {
         </select>
         <button
           onClick={handleAdd}
-          className="w-full bg-[#f4a923] text-white font-semibold py-2 rounded hover:bg-yellow-400 transition"
+          className="w-full bg-[#122d5b] text-white font-semibold py-2 rounded hover:bg-[#244c90] transition"
         >
           Tambah
         </button>

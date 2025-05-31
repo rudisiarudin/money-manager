@@ -252,7 +252,7 @@ export default function SplitBillPage() {
             />
             <button
               onClick={addParticipant}
-              className="bg-[#f4a923] text-white px-4 py-2 rounded hover:bg-yellow-400 transition"
+              className="bg-[#122d5b] text-white px-4 py-2 rounded hover:bg-[#244c90] transition"
             >
               Tambah
             </button>
@@ -306,7 +306,7 @@ export default function SplitBillPage() {
                   key={id}
                   className={`cursor-pointer px-3 py-1 rounded border ${
                     selectedParticipantIds.includes(id)
-                      ? 'bg-[#f4a923] text-white border-[#f4a923]'
+                      ? 'bg-[#122d5b] text-white border-[#122d5b]'
                       : 'bg-white text-gray-700 border-gray-300'
                   }`}
                 >
@@ -324,7 +324,7 @@ export default function SplitBillPage() {
 
           <button
             onClick={addItem}
-            className="bg-[#f4a923] text-white px-4 py-2 rounded hover:bg-yellow-400 transition"
+            className="bg-[#122d5b] text-white px-4 py-2 rounded hover:bg-[#244c90] transition"
           >
             Tambah Item
           </button>
@@ -398,7 +398,7 @@ export default function SplitBillPage() {
         {/* Tombol Hitung */}
         <button
           onClick={calculateSplit}
-          className="bg-[#f4a923] w-full py-3 rounded text-white font-semibold hover:bg-yellow-400 transition"
+          className="bg-[#122d5b] w-full py-3 rounded text-white font-semibold hover:bg-[#244c90] transition"
         >
           Hitung Split Bill
         </button>
@@ -422,7 +422,7 @@ export default function SplitBillPage() {
             </ul>
             <button
               onClick={closePopupResult}
-              className="mt-6 bg-[#122d5b] w-full py-2 rounded text-white font-semibold hover:bg-yellow-400 transition"
+              className="mt-6 bg-[#122d5b] w-full py-2 rounded text-white font-semibold hover:bg-[#244c90] transition"
             >
               Tutup
             </button>

@@ -225,7 +225,7 @@ export default function HomePage() {
           <div className="bg-gradient-to-br from-[#122d5b] to-[#13223c] text-white rounded-2xl p-5 shadow-lg">
             <p className="text-xs opacity-80">Total Saldo</p>
             <div className="flex items-center gap-2 mt-1 mb-4">
-              <h1 className="text-2xl font-bold">
+              <h1 className="text-2xl font-bold"> 💰
                 {showBalance ? formatCurrency(income - expense - totalTarget) : '••••••'}
               </h1>
               <button onClick={() => setShowBalance(!showBalance)}>
@@ -234,12 +234,12 @@ export default function HomePage() {
             </div>
             <div className="flex justify-between text-xs opacity-70">
               <div className="text-green-400">
-                <p className="uppercase font-semibold">Pemasukan</p>
+                <p className="uppercase font-semibold">📈 Pemasukan</p>
                 <p>{formatCurrency(income)}</p>
               </div>
               <div className="border-l border-white/40" />
               <div className="text-red-400">
-                <p className="uppercase font-semibold">Pengeluaran</p>
+                <p className="uppercase font-semibold">📉 Pengeluaran</p>
                 <p>{formatCurrency(expense)}</p>
               </div>
             </div>
@@ -296,7 +296,7 @@ export default function HomePage() {
 
         {/* Transaksi Terbaru */}
         <section className="mt-5 flex justify-between items-center mb-2">
-          <h3 className="font-semibold text-[#122d5b]">Transaksi Terbaru</h3>
+          <h3 className="font-semibold text-[#122d5b]">🧾 Transaksi Terbaru</h3>
           <Link href="/history" className="text-sm text-[#122d5b] font-medium hover:underline">
             Lihat Semua
           </Link>
@@ -329,26 +329,26 @@ export default function HomePage() {
 
       {/* Navbar Bawah */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center py-3 px-2 shadow-md">
-        <Link href="/" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+        <Link href="/" className="flex flex-col items-center text-[#122d5b] hover:text-[#244c90] transition-colors duration-200">
           <Home size={20} />
           <span className="text-xs mt-1 font-medium">Beranda</span>
         </Link>
-        <Link href="/history" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+        <Link href="/history" className="flex flex-col items-center text-[#122d5b] hover:text-[#244c90] transition-colors duration-200">
           <Clock size={20} />
           <span className="text-xs mt-1 font-medium">Riwayat</span>
         </Link>
         <button
           onClick={() => setIsModalOpen(true)}
           aria-label="Tambah Transaksi"
-          className="flex flex-col items-center text-white bg-[#f4a923] rounded-full p-3 shadow-lg -mt-6 w-14 h-14 justify-center hover:bg-yellow-400 transition-colors duration-200"
+          className="flex flex-col items-center text-white bg-[#122d5b] rounded-full p-3 shadow-lg -mt-6 w-14 h-14 justify-center hover:bg-[173d7e] transition-colors duration-200"
         >
           <Plus size={24} />
         </button>
-        <Link href="/dompet" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+        <Link href="/dompet" className="flex flex-col items-center text-[#122d5b] hover:text-[#244c90] transition-colors duration-200">
           <DollarSign size={20} />
-          <span className="text-xs mt-1 font-medium">Keuangan</span>
+          <span className="text-xs mt-1 font-medium">Dompet</span>
         </Link>
-        <Link href="/profile" className="flex flex-col items-center text-[#122d5b] hover:text-[#f4a923] transition-colors duration-200">
+        <Link href="/profile" className="flex flex-col items-center text-[#122d5b] hover:text-[#244c90] transition-colors duration-200">
           <UserRound size={20} />
           <span className="text-xs mt-1 font-medium">Profil</span>
         </Link>
