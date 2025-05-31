@@ -102,6 +102,15 @@ export default function HutangPiutangPage() {
     };
   }, [router]);
 
+  // Hitung total hutang dan piutang yang belum lunas
+  const totalDebt = data
+    .filter(item => item.type === 'debt' && !item.paid)
+    .reduce((acc, cur) => acc + cur.amount, 0);
+
+  const totalCredit = data
+    .filter(item => item.type === 'credit' && !item.paid)
+    .reduce((acc, cur) => acc + cur.amount, 0);
+
   async function handleAdd() {
     setError(null);
     if (!title.trim()) {
@@ -291,6 +300,17 @@ export default function HutangPiutangPage() {
 
       <div className="bg-white rounded-lg shadow p-4">
         <h2 className="font-semibold mb-4">Daftar Hutang & Piutang</h2>
+
+        {/* Total hutang dan piutang */}
+        <div className="mb-4 flex justify-between px-2">
+          <div className="text-red-700 font-semibold">
+            Total Hutang: {formatCurrency(totalDebt)}
+          </div>
+          <div className="text-green-700 font-semibold">
+            Total Piutang: {formatCurrency(totalCredit)}
+          </div>
+        </div>
+
         {data.length === 0 && <p className="text-gray-500 text-center">Belum ada data</p>}
         <ul className="space-y-3 max-h-[400px] overflow-auto">
           {data.map(({ id, title, amount, dueDate, type, paid, createdAt }) => (
@@ -309,35 +329,38 @@ export default function HutangPiutangPage() {
                   </span>
                 </p>
               </div>
-              <div className="flex flex-col items-end">
-                <p className={`font-semibold ${type === 'debt' ? 'text-red-600' : 'text-green-600'}`}>
+              <div className="flex flex-col items-end space-y-1">
+                <p
+                  className={`font-semibold ${
+                    type === 'debt' ? 'text-red-700' : 'text-green-700'
+                  }`}
+                >
                   {formatCurrency(amount)}
                 </p>
-                <label className="flex items-center gap-1 text-xs mt-1 cursor-pointer select-none">
-                  <input type="checkbox" checked={paid} onChange={() => togglePaid(id, paid)} />
-                  Lunas
-                </label>
-              </div>
-              <div className="flex items-center gap-2 ml-4">
                 <button
-                  onClick={() =>
-                    amount > 0 ? openInstallmentModal({ id, title, amount, dueDate, type, paid, createdAt }) : null
-                  }
-                  className={`text-xs rounded px-2 py-1 border ${
-                    amount > 0 ? 'border-[#f4a923] text-[#f4a923]' : 'border-gray-300 text-gray-400 cursor-not-allowed'
+                  className={`text-sm px-2 py-1 rounded ${
+                    paid
+                      ? 'bg-gray-300 cursor-default'
+                      : type === 'debt'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
-                  title={amount > 0 ? 'Bayar cicilan' : 'Sudah lunas, tidak bisa cicilan'}
-                  type="button"
+                  disabled={paid}
+                  onClick={() => openInstallmentModal({ id, title, amount, dueDate, type, paid, createdAt })}
                 >
-                  Cicil
+                  {paid ? 'Lunas' : 'Bayar Cicilan'}
+                </button>
+                <button
+                  onClick={() => togglePaid(id, paid)}
+                  className="text-xs underline text-gray-700 hover:text-gray-900"
+                >
+                  Tandai {paid ? 'Belum Lunas' : 'Lunas'}
                 </button>
                 <button
                   onClick={() => openConfirmDelete(id)}
-                  className="text-red-600 hover:text-red-800 text-xl leading-none"
-                  aria-label="Hapus data"
-                  type="button"
+                  className="text-xs text-red-600 hover:underline"
                 >
-                  &times;
+                  Hapus
                 </button>
               </div>
             </li>
@@ -345,20 +368,28 @@ export default function HutangPiutangPage() {
         </ul>
       </div>
 
-      {/* Modal Cicilan */}
+      {/* Modal cicilan */}
       {modalOpen && selectedDebt && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-40">
-          <div className="bg-white rounded-lg p-6 w-80 max-w-full shadow-lg">
-            <h3 className="font-bold mb-4 text-[#122d5b]">
-              Bayar Cicilan: {selectedDebt.title}
-            </h3>
-            <p className="mb-2">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50"
+          onClick={closeInstallmentModal}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-4">Bayar Cicilan</h3>
+            <p className="mb-2">Judul: {selectedDebt.title}</p>
+            <p className="mb-4">
               Sisa: {formatCurrency(selectedDebt.amount)}
             </p>
+            {installmentError && (
+              <p className="text-red-600 mb-2">{installmentError}</p>
+            )}
             <input
               type="text"
-              placeholder="Nominal cicilan"
-              className="w-full p-2 border rounded mb-2"
+              placeholder="Nominal cicilan (Rp)"
+              className="w-full p-2 border rounded mb-4"
               value={installmentAmount}
               onChange={(e) => {
                 const val = e.target.value;
@@ -366,17 +397,16 @@ export default function HutangPiutangPage() {
                 setInstallmentAmount(formatted);
               }}
             />
-            {installmentError && <p className="text-red-600 mb-2">{installmentError}</p>}
-            <div className="flex justify-end gap-4">
+            <div className="flex justify-end space-x-3">
               <button
                 onClick={closeInstallmentModal}
-                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100 transition"
+                className="px-4 py-2 border rounded hover:bg-gray-100"
               >
                 Batal
               </button>
               <button
                 onClick={handlePayInstallment}
-                className="px-4 py-2 rounded bg-[#f4a923] text-white hover:bg-yellow-400 transition"
+                className="px-4 py-2 bg-[#122d5b] text-white rounded hover:bg-[#244c90]"
               >
                 Bayar
               </button>
@@ -385,22 +415,28 @@ export default function HutangPiutangPage() {
         </div>
       )}
 
-      {/* Modal Konfirmasi Hapus */}
+      {/* Modal konfirmasi hapus custom */}
       {confirmDeleteOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white rounded-lg p-6 w-80 max-w-full shadow-lg">
-            <h3 className="text-red-600 font-bold text-lg mb-4">Konfirmasi Hapus</h3>
-            <p className="mb-6">Apakah Anda yakin ingin menghapus data ini?</p>
-            <div className="flex justify-end gap-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+          onClick={closeConfirmDelete}
+        >
+          <div
+            className="bg-white rounded-lg p-6 w-80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-4 text-red-600">Konfirmasi Hapus</h3>
+            <p className="mb-6">Apakah kamu yakin ingin menghapus data ini?</p>
+            <div className="flex justify-end space-x-3">
               <button
                 onClick={closeConfirmDelete}
-                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100 transition"
+                className="px-4 py-2 border rounded hover:bg-gray-100"
               >
                 Batal
               </button>
               <button
                 onClick={handleDeleteConfirmed}
-                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition"
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
                 Hapus
               </button>
