@@ -1,6 +1,12 @@
-// components/AdsBanner.tsx
 'use client';
 import { useEffect } from 'react';
+
+// 👇 Tambahkan ini untuk kasih tahu TypeScript bahwa adsbygoogle itu valid
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
 
 export default function AdsBanner() {
   useEffect(() => {
@@ -19,10 +25,10 @@ export default function AdsBanner() {
         className="adsbygoogle"
         style={{ display: 'block', width: '100%', maxWidth: 728, height: 90 }}
         data-ad-client="ca-pub-1717304787775466"
-        data-ad-slot="1234567890" // Ganti dengan ad-slot milikmu
+        data-ad-slot="1234567890" // Ganti dengan slot milikmu
         data-ad-format="horizontal"
         data-full-width-responsive="true"
-      ></ins>
+      />
     </div>
   );
 }
