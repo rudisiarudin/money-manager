@@ -27,6 +27,7 @@ import {
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import AdsBanner from '@/components/AdsBanner';
 
 import TambahTransaksiModal from '@/components/TambahTransaksiModal';
 
@@ -293,6 +294,10 @@ export default function HomePage() {
             <p className="font-semibold text-[#122d5b] text-center">Target</p>
           </Link>
         </section>
+
+        
+        {/* Iklan Google - tidak mengganggu */}
+        <AdsBanner />
 
         {/* Transaksi Terbaru */}
         <section className="mt-5 flex justify-between items-center mb-2">
