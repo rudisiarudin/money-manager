@@ -25,12 +25,12 @@ export default function RootLayout({
   return (
     <html lang="id">
       <head>
-        {/* Script Google AdSense Auto Ads */}
+        {/* Google AdSense Auto Ads */}
         <Script
+          id="adsense-script"
           async
           strategy="afterInteractive"
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
-          data-ad-client="ca-pub-1717304787775466"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1717304787775466"
           crossOrigin="anonymous"
         />
       </head>
