@@ -326,7 +326,11 @@ export default function HomePage() {
             <p className="text-center text-gray-400 font-medium mt-4">Belum ada transaksi</p>
           )}
         </section>
-
+        
+     {/* Iklan hanya tampil saat modal TIDAK terbuka */}
+        {!isModalOpen && <AdsBanner />}
+        
+        {/* Modal Tambah Transaksi */}
         {isModalOpen && (
           <TambahTransaksiModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         )}
