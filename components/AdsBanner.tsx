@@ -23,11 +23,10 @@ export default function AdsBanner() {
     <div className="w-full flex justify-center my-4">
       <ins
         className="adsbygoogle"
-        style={{ display: 'block', width: '100%', maxWidth: 728, height: 90 }}
+        style={{ display: 'block' }}
         data-ad-client="ca-pub-1717304787775466"
-        data-ad-slot="9136325128"
-        data-ad-format="auto"
-        data-full-width-responsive="true"
+        data-ad-slot="5647549474"
+        data-ad-format="autorelaxed"
       />
     </div>
   );
