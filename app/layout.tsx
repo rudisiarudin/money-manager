@@ -27,12 +27,12 @@ export default function RootLayout({
       <head>
         {/* Google AdSense Auto Ads */}
         <Script
-          id="adsense-script"
           async
           strategy="afterInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1717304787775466"
           crossOrigin="anonymous"
         />
+
       </head>
       <body className={`${inter.className} bg-gray-50 min-h-screen`}>
         {children}
