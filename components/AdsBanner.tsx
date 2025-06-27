@@ -10,12 +10,12 @@ declare global {
 
 export default function AdsBanner() {
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
+      try {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        console.error('AdSense error:', e);
       }
-    } catch (e) {
-      console.error('AdSense error:', e);
     }
   }, []);
 
@@ -23,10 +23,16 @@ export default function AdsBanner() {
     <div className="w-full flex justify-center my-4">
       <ins
         className="adsbygoogle"
-        style={{ display: 'block' }}
+        style={{
+          display: 'block',
+          width: '100%',
+          maxWidth: '728px',
+          height: '90px', // tinggi minimal aman
+        }}
         data-ad-client="ca-pub-1717304787775466"
-        data-ad-slot="5647549474"
-        data-ad-format="autorelaxed"
+        data-ad-slot="9136325128" // ✅ Slot iklan responsif biasa
+        data-ad-format="auto"
+        data-full-width-responsive="true"
       />
     </div>
   );
