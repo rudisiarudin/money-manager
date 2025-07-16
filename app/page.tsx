@@ -27,7 +27,7 @@ import {
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import AdsBanner from '@/components/AdsBanner';
+
 
 import TambahTransaksiModal from '@/components/TambahTransaksiModal';
 
@@ -296,8 +296,7 @@ export default function HomePage() {
         </section>
 
         
-        {/* Iklan Google - tidak mengganggu */}
-        <AdsBanner />
+
 
         {/* Transaksi Terbaru */}
         <section className="mt-5 flex justify-between items-center mb-2">
@@ -327,9 +326,7 @@ export default function HomePage() {
           )}
         </section>
         
-     {/* Iklan hanya tampil saat modal TIDAK terbuka */}
-        {!isModalOpen && <AdsBanner />}
-        
+    
         {/* Modal Tambah Transaksi */}
         {isModalOpen && (
           <TambahTransaksiModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
